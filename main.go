@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -17,11 +16,33 @@ import (
 )
 
 
+type User struct {
+    bun.BaseModel `bun:"table:vpn-users,alias:u"`
+
+	ID	 int64  `bun:",pk,autoincrement"`
+	Name string
+	Password string
+}
+
 func main() {
     var telegramToken string = os.Getenv("TELEGRAM_API_TOKEN")
+    var postgresDsn string = os.Getenv("POSTGRES_DSN")
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
+    // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
+    sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(postgresDsn)))
+    db := bun.NewDB(sqldb, pgdialect.New())
+    err := db.ResetModel(ctx, (*User)(nil))
+    if err != nil {
+        panic(err)
+    }
+//     res, err := db.NewCreateTable().Model((*User)(nil)).Exec(ctx)
+//     if err != nil {
+//         panic(err)
+//     }
+    log.Printf("Table Users created")
 	opts := []bot.Option{
 		bot.WithDefaultHandler(defaultHandler),
 		bot.WithCallbackQueryDataHandler("button", bot.MatchTypePrefix, callbackHandler),
@@ -41,15 +62,6 @@ func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	// and we're handling it. Otherwise, Telegram might retry sending the update repetitively
 	// as it thinks the callback query doesn't reach to our application. learn more by
 	// reading the footnote of the https://core.telegram.org/bots/api#callbackquery type.
-
-	dsn := "postgres://postgres:@localhost:5432/test?sslmode=disable"
-    // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
-    sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
-
-    db := bun.NewDB(sqldb, pgdialect.New())
-
-    res, _ := db.ExecContext(ctx, "SELECT 1")
-    fmt.Println(res)
 
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
