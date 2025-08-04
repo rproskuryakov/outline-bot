@@ -38,14 +38,16 @@ func main() {
     if err != nil {
         panic(err)
     }
+    dbConnInstance := &dbConn{db: db}
 //     res, err := db.NewCreateTable().Model((*User)(nil)).Exec(ctx)
 //     if err != nil {
 //         panic(err)
 //     }
     log.Printf("Table Users created")
 	opts := []bot.Option{
-		bot.WithDefaultHandler(defaultHandler),
-		bot.WithCallbackQueryDataHandler("button", bot.MatchTypePrefix, callbackHandler),
+		bot.WithDefaultHandler(dbConnInstance.defaultHandler),
+		bot.WithCallbackQueryDataHandler("button", bot.MatchTypePrefix, dbConnInstance.callbackHandler),
+		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, dbConnInstance.defaultHandler),
 	}
     b, err := bot.New(telegramToken, opts...)
 	if err != nil {
@@ -56,8 +58,11 @@ func main() {
 	log.Printf("Bot shutdown...")
 }
 
+type dbConn struct {
+    db *bun.DB
+}
 
-func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (dbConnection *dbConn) callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	// answering callback query first to let Telegram know that we received the callback query,
 	// and we're handling it. Otherwise, Telegram might retry sending the update repetitively
 	// as it thinks the callback query doesn't reach to our application. learn more by
@@ -83,20 +88,32 @@ func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 }
 
 
-func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	kb := &models.InlineKeyboardMarkup{
-		InlineKeyboard: [][]models.InlineKeyboardButton{
-			{
-				{Text: "Получить новый ключ", CallbackData: "get-vpn-key"},
-				{Text: "Button 2", CallbackData: "button_2"},
-			}, {
-				{Text: "Button 3", CallbackData: "button_3"},
-			},
-		},
-	}
-
-	b.SendMessage(ctx, &bot.SendMessageParams{
+func (dbConnection *dbConn) defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
-		Text:        "Click by button",
-		ReplyMarkup: kb, })
+		Text:        "I am YetAnotherVPN Bot. \n"+
+		             "I can sign up a new user, " +
+		             "change limits on monthly traffic " +
+		             "or regenerate an api key in case your's has stopped working. \n" + "\n" +
+		             "I am built on open source outline vpn technology. \n"
+		             "/start \n" +
+		             "/signup \n" +
+		             "/reissueApiKey \n" +
+		             "/changeLimits \n",
+    })
+// 	kb := &models.InlineKeyboardMarkup{
+// 		InlineKeyboard: [][]models.InlineKeyboardButton{
+// 			{
+// 				{Text: "Получить новый ключ", CallbackData: "get-vpn-key"},
+// 				{Text: "Button 2", CallbackData: "button_2"},
+// 			}, {
+// 				{Text: "Button 3", CallbackData: "button_3"},
+// 			},
+// 		},
+// 	}
+//
+// 	b.SendMessage(ctx, &bot.SendMessageParams{
+// 		ChatID:      update.Message.Chat.ID,
+// 		Text:        "Click by button",
+// 		ReplyMarkup: kb, })
 }
