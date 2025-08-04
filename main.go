@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -24,6 +27,74 @@ type User struct {
 	Password string
 }
 
+
+type Server struct {
+    db *bun.DB
+}
+
+func (server *Server) defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "I am YetAnotherVPN Bot. \n"+
+		             "I can sign up a new user, " +
+		             "change limits on monthly traffic " +
+		             "or regenerate an api key in case your's has stopped working. \n" + "\n" +
+		             "I am built on open source outline vpn technology. \n" +
+		             "/start \n",
+    })
+}
+
+func (server *Server) startHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    hasher := md5.New()
+    hasher.Write([]byte(strconv.FormatInt(update.Message.From.ID, 10)))
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "Your hashed telegram id " + hex.EncodeToString(hasher.Sum(nil)),
+    })
+//     check if user exists in database
+//     if so, then they can reissueApiKey, viewTrafficUsed, changeLimits
+//     if user doesnt exist in database then they can sign up
+//     and then issueApiKey
+
+}
+
+func (server *Server) signUpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "signUp",
+    })
+}
+
+
+func (server *Server) issueApiKeyHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "issueApiKey",
+    })
+}
+
+func (server *Server) reissueApiKeyHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "reissueApiKey",
+    })
+}
+
+func (server *Server) viewTrafficUsedHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "viewTrafficUsed",
+    })
+}
+
+func (server *Server) changeLimitsHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "changeLimits",
+    })
+}
+
+
 func main() {
     var telegramToken string = os.Getenv("TELEGRAM_API_TOKEN")
     var postgresDsn string = os.Getenv("POSTGRES_DSN")
@@ -38,16 +109,16 @@ func main() {
     if err != nil {
         panic(err)
     }
-    dbConnInstance := &dbConn{db: db}
-//     res, err := db.NewCreateTable().Model((*User)(nil)).Exec(ctx)
-//     if err != nil {
-//         panic(err)
-//     }
+    server := &Server{db: db}
     log.Printf("Table Users created")
 	opts := []bot.Option{
-		bot.WithDefaultHandler(dbConnInstance.defaultHandler),
-		bot.WithCallbackQueryDataHandler("button", bot.MatchTypePrefix, dbConnInstance.callbackHandler),
-		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, dbConnInstance.defaultHandler),
+		bot.WithDefaultHandler(server.defaultHandler),
+		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, server.startHandler),
+		bot.WithMessageTextHandler("/signUp", bot.MatchTypeExact, server.signUpHandler),
+		bot.WithMessageTextHandler("/issueApiKey", bot.MatchTypeExact, server.issueApiKeyHandler),
+		bot.WithMessageTextHandler("/reissueApiKey", bot.MatchTypeExact, server.reissueApiKeyHandler),
+		bot.WithMessageTextHandler("/changeLimits", bot.MatchTypeExact, server.changeLimitsHandler),
+		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, server.viewTrafficUsedHandler),
 	}
     b, err := bot.New(telegramToken, opts...)
 	if err != nil {
@@ -56,64 +127,4 @@ func main() {
     log.Printf("Starting bot...")
 	b.Start(ctx)
 	log.Printf("Bot shutdown...")
-}
-
-type dbConn struct {
-    db *bun.DB
-}
-
-func (dbConnection *dbConn) callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	// answering callback query first to let Telegram know that we received the callback query,
-	// and we're handling it. Otherwise, Telegram might retry sending the update repetitively
-	// as it thinks the callback query doesn't reach to our application. learn more by
-	// reading the footnote of the https://core.telegram.org/bots/api#callbackquery type.
-
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-		ShowAlert:       false,
-	})
-    var buttonName string = update.CallbackQuery.Data
-    if buttonName == "get-vpn-key" {
-        b.SendMessage(ctx, &bot.SendMessageParams{
-		    ChatID: update.CallbackQuery.Message.Message.Chat.ID,
-		    Text:   "get vpn key: ",
-	    })
-    } else {
-        b.SendMessage(ctx, &bot.SendMessageParams{
-		    ChatID: update.CallbackQuery.Message.Message.Chat.ID,
-		    Text:   "You selected the button: " + buttonName,
-	    })
-    }
-
-}
-
-
-func (dbConnection *dbConn) defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-    b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
-		Text:        "I am YetAnotherVPN Bot. \n"+
-		             "I can sign up a new user, " +
-		             "change limits on monthly traffic " +
-		             "or regenerate an api key in case your's has stopped working. \n" + "\n" +
-		             "I am built on open source outline vpn technology. \n"
-		             "/start \n" +
-		             "/signup \n" +
-		             "/reissueApiKey \n" +
-		             "/changeLimits \n",
-    })
-// 	kb := &models.InlineKeyboardMarkup{
-// 		InlineKeyboard: [][]models.InlineKeyboardButton{
-// 			{
-// 				{Text: "Получить новый ключ", CallbackData: "get-vpn-key"},
-// 				{Text: "Button 2", CallbackData: "button_2"},
-// 			}, {
-// 				{Text: "Button 3", CallbackData: "button_3"},
-// 			},
-// 		},
-// 	}
-//
-// 	b.SendMessage(ctx, &bot.SendMessageParams{
-// 		ChatID:      update.Message.Chat.ID,
-// 		Text:        "Click by button",
-// 		ReplyMarkup: kb, })
 }
