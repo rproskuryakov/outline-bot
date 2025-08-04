@@ -2,12 +2,18 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/driver/pgdriver"
 )
 
 
@@ -17,19 +23,68 @@ func main() {
 	defer cancel()
 
 	opts := []bot.Option{
-		bot.WithDefaultHandler(handler),
+		bot.WithDefaultHandler(defaultHandler),
+		bot.WithCallbackQueryDataHandler("button", bot.MatchTypePrefix, callbackHandler),
 	}
     b, err := bot.New(telegramToken, opts...)
 	if err != nil {
 		panic(err)
 	}
-
+    log.Printf("Starting bot...")
 	b.Start(ctx)
+	log.Printf("Bot shutdown...")
 }
 
-func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   update.Message.Text,
+
+func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	// answering callback query first to let Telegram know that we received the callback query,
+	// and we're handling it. Otherwise, Telegram might retry sending the update repetitively
+	// as it thinks the callback query doesn't reach to our application. learn more by
+	// reading the footnote of the https://core.telegram.org/bots/api#callbackquery type.
+
+	dsn := "postgres://postgres:@localhost:5432/test?sslmode=disable"
+    // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
+    sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+
+    db := bun.NewDB(sqldb, pgdialect.New())
+
+    res, _ := db.ExecContext(ctx, "SELECT 1")
+    fmt.Println(res)
+
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+		ShowAlert:       false,
 	})
+    var buttonName string = update.CallbackQuery.Data
+    if buttonName == "get-vpn-key" {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID: update.CallbackQuery.Message.Message.Chat.ID,
+		    Text:   "get vpn key: ",
+	    })
+    } else {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID: update.CallbackQuery.Message.Message.Chat.ID,
+		    Text:   "You selected the button: " + buttonName,
+	    })
+    }
+
+}
+
+
+func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	kb := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "Получить новый ключ", CallbackData: "get-vpn-key"},
+				{Text: "Button 2", CallbackData: "button_2"},
+			}, {
+				{Text: "Button 3", CallbackData: "button_3"},
+			},
+		},
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "Click by button",
+		ReplyMarkup: kb, })
 }
