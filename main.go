@@ -25,6 +25,7 @@ type User struct {
 	ID	 int64  `bun:",pk,autoincrement"`
 	Name string
 	Password string
+	IsAdmin bool
 }
 
 
@@ -44,25 +45,115 @@ func (server *Server) defaultHandler(ctx context.Context, b *bot.Bot, update *mo
     })
 }
 
-func (server *Server) startHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func checkIfUserExists(ctx context.Context, username int64, db *bun.DB) (bool, err) {
     hasher := md5.New()
-    hasher.Write([]byte(strconv.FormatInt(update.Message.From.ID, 10)))
-    b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
-		Text:        "Your hashed telegram id " + hex.EncodeToString(hasher.Sum(nil)),
-    })
-//     check if user exists in database
-//     if so, then they can reissueApiKey, viewTrafficUsed, changeLimits
-//     if user doesnt exist in database then they can sign up
-//     and then issueApiKey
+    hasher.Write([]byte(strconv.FormatInt(username, 10)))
+    usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+    user := new(User)
+    exists, err := db.NewSelect().Model(user).Where("username = ? ", usernameHashed).Exists(ctx)
+    if err != nil {
+        return false, err
+    }
+    return exists, nil
+}
+
+func getUserAttributes(ctx context.Context, username int64, db *bun.DB) (user *User, err error) {
+    hasher := md5.New()
+    hasher.Write([]byte(strconv.FormatInt(username, 10)))
+    usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+    user := new(User)
+    err := db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+    if err != nil {
+        return user, err
+    }
+    return user, nil
+}
+
+
+func (server *Server) startHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    usernameTelegramID := update.Message.From.ID
+    // check if user exists
+    exists, err := checkIfUserExists(ctx, usernameTelegramID, server.db)
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+        return err
+    }
+
+    user, err := getUserAttributes(ctx, usernameTelegramID, server.db)
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+        return err
+    }
+    if exists && user.IsAdmin {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "User " + strconv.FormatInt(usernameTelegramID, 10) + " is found. \n" +
+		                 "You can do one of the following: \n" +
+		                 "/issueApiKey \n" +
+		                 "/reissueApiKey \n" +
+		                 "/viewTrafficUsed",
+        })
+        return
+    } else if exists && user.IsAdmin {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "Admin " + strconv.FormatInt(usernameTelegramID, 10) + " is found. \n" +
+		                 "You can do one of the following: \n" +
+		                 "/createServer \n" +
+		                 "/changeLimits \n" +
+		                 "/viewOverallTrafficUsed",
+        })
+        return
+    } else if !exists {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "User " + strconv.FormatInt(usernameTelegramID, 10) + " is not found. \n" +
+		                 "Please, sign up: \n" +
+		                 "/signUp \n",
+        })
+        return
+    }
 
 }
 
 func (server *Server) signUpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-    b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
-		Text:        "signUp",
-    })
+    usernameTelegramID := update.Message.From.ID
+    exists, err := checkIfUserExists(ctx, usernameTelegramID, server.db)
+
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+        return err
+    }
+    if exists {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "User " + strconv.FormatInt(usernameTelegramID, 10) + " already exists. \n" +
+		                 "You can do one of the following: \n" +
+		                 "/issueApiKey \n" +
+		                 "/reissueApiKey \n" +
+		                 "/viewTrafficUsed",
+        })
+        return
+        return
+    } else {
+        hasher := md5.New()
+        hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
+        usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+        user := &User{Name: usernameHashed, IsAdmin: false}
+        _, err := server.db.NewInsert().Model(user).Exec(ctx)
+
+        if err != nil {
+            log.Printf(err.Error())
+            panic(err)
+        }
+    }
+
 }
 
 
