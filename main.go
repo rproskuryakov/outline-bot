@@ -94,7 +94,7 @@ func (server *Server) changeLimitsHandler(ctx context.Context, b *bot.Bot, updat
     })
 }
 
-func (server *Server) createServerHandler() {
+func (server *Server) createServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
 		Text:        "createServer",
