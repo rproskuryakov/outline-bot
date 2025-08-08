@@ -72,7 +72,7 @@ func NewOutlineVPN(apiURL string, certSha256 string) (*OutlineVPN, error) {
 	}*/
 
 	// Creating a client
-	client := &fasthttp.Client{
+	client := &http.Client{
 		TLSConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
@@ -113,7 +113,7 @@ func (vpn *OutlineVPN) GetKeys() ([]OutlineKey, error) {
 	}
 
 	// If keys is gathered, status code always must be 200
-	if response.StatusCode() != fasthttp.StatusOK {
+	if response.StatusCode() != http.StatusOK {
 		return nil, errors.New("unable to retrieve keys")
 	}
 
@@ -145,7 +145,7 @@ func (vpn *OutlineVPN) GetKey(id string) (*OutlineKey, error) {
 	}
 
 	// If key is added, status code always must be 200
-	if response.StatusCode() != fasthttp.StatusOK {
+	if response.StatusCode() != http.StatusOK {
 		return &result, errors.New("unable to retrieve key data")
 	}
 
@@ -202,7 +202,7 @@ func (vpn *OutlineVPN) AddKey(key *OutlineKey) (*OutlineKey, error) {
 	}
 
 	// If key is created, status code always must be 201
-	if response.StatusCode() != fasthttp.StatusCreated {
+	if response.StatusCode() != http.StatusCreated {
 		return key, errors.New("response error while adding new key")
 	}
 
@@ -233,7 +233,7 @@ func (vpn *OutlineVPN) DeleteKeyByID(id string) error {
 	}
 
 	// If key is deleted, status code always must be 204
-	if response.StatusCode() != fasthttp.StatusNoContent {
+	if response.StatusCode() != status.StatusNoContent {
 		return errors.New("response error while adding new key")
 	}
 
@@ -266,7 +266,7 @@ func (vpn *OutlineVPN) RenameKeyByID(id string, name string) error {
 	}
 
 	// If key is renamed, status code always must be 204
-	if response.StatusCode() != fasthttp.StatusNoContent {
+	if response.StatusCode() != http.StatusNoContent {
 		return errors.New("response error while renaming key")
 	}
 
@@ -289,7 +289,7 @@ func (vpn *OutlineVPN) GetTransferMetrics() (*BytesTransferred, error) {
 	}
 
 	// If data is gathered, status code always must be lower than 400
-	if response.StatusCode() >= fasthttp.StatusBadRequest {
+	if response.StatusCode() >= status.StatusBadRequest {
 		return &result, errors.New("unable to get metrics for keys")
 	}
 
@@ -317,7 +317,7 @@ func (vpn *OutlineVPN) GetServerInfo() (*ServerInfo, error) {
 	}
 
 	// If data is gathered, status code always must be lower than 400
-	if response.StatusCode() >= fasthttp.StatusBadRequest {
+	if response.StatusCode() >= status.StatusBadRequest {
 		return &result, errors.New("unable to get metrics for keys")
 	}
 
