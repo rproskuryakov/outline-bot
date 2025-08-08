@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/valyala/fasthttp"
-	"net/url"
+    "io/ioutil"
+    "net/http"
+    "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ import (
 // OutlineVPN represents connection source to manage Outline VPN server
 type OutlineVPN struct {
 	apiURL  string
-	session *fasthttp.Client
+	session *http.Client
 }
 
 // OutlineKey represents access key parameters for Outline server
