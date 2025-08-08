@@ -94,6 +94,13 @@ func (server *Server) changeLimitsHandler(ctx context.Context, b *bot.Bot, updat
     })
 }
 
+func (server *Server) createServerHandler() {
+    b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        "createServer",
+    })
+}
+
 
 func main() {
     var telegramToken string = os.Getenv("TELEGRAM_API_TOKEN")
@@ -117,6 +124,7 @@ func main() {
 		bot.WithMessageTextHandler("/signUp", bot.MatchTypeExact, server.signUpHandler),
 		bot.WithMessageTextHandler("/issueApiKey", bot.MatchTypeExact, server.issueApiKeyHandler),
 		bot.WithMessageTextHandler("/reissueApiKey", bot.MatchTypeExact, server.reissueApiKeyHandler),
+		bot.WithMessageTextHandler("/createServer", bot.MatchTypeExact, server.createServerHandler),
 		bot.WithMessageTextHandler("/changeLimits", bot.MatchTypeExact, server.changeLimitsHandler),
 		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, server.viewTrafficUsedHandler),
 	}
