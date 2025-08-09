@@ -31,5 +31,16 @@ services:
     ports:
       - "8080:8080"
 
+  outline-server:
+    image: quay.io/outline/shadowbox
+    ports:
+      - "40000:40000"
+      - "60000:60000"
+    environment:
+      SB_API_PORT: 8001
+      SB_API_PREFIX: /manage
+      SB_CERTIFICATE_FILE: a.crt
+      SB_PRIVATE_KEY_FILE: a.key
+
 volumes:
   pgdata:
