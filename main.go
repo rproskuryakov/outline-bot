@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -26,6 +27,44 @@ type User struct {
 	Name string
 	Password string
 	IsAdmin bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type AccessKey struct {
+    bun.BaseModel `bun:"table:vpn-access-keys,alias:k"`
+
+    ID	 int64  `bun:",pk,autoincrement"`
+    Name string
+    URL string
+    APIKey string
+    UserID int64
+	User User `bun:"rel:belongs-to,join:user_id=id"`
+	ServerID int64
+	Server ServerRecord `bun:"rel:belongs-to,join:server_id=id"`
+	ByteLimit int64
+}
+
+type ServerRecord struct {
+    bun.BaseModel `bun:"table:vpn-servers,alias:s"`
+
+    ID	 int64  `bun:",pk,autoincrement"`
+    CreatedAt time.Time
+    APIKey string
+    UserID int64
+	User User `bun:"rel:belongs-to,join:user_id=id"`
+	IsActive bool
+	CloudProvider CloudProvider `bun:"rel:belongs-to,join:cloud_provider_id=id"`
+	CloudProviderID int64
+}
+
+type CloudProvider struct {
+    bun.BaseModel `bun:"table:cloud-providers,alias:c"`
+
+    ID	 int64  `bun:",pk,autoincrement"`
+    Name string
+    CreatedAt time.Time
+
 }
 
 
