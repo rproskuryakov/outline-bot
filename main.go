@@ -51,8 +51,8 @@ type ServerRecord struct {
     ID	 int64  `bun:",pk,autoincrement"`
     CreatedAt time.Time
     APIKey string
-    UserID int64
-	User User `bun:"rel:belongs-to,join:user_id=id"`
+    OwnerID int64
+	Owner User `bun:"rel:belongs-to,join:owner_id=id"`
 	IsActive bool
 	CloudProvider CloudProvider `bun:"rel:belongs-to,join:cloud_provider_id=id"`
 	CloudProviderID int64
@@ -64,7 +64,15 @@ type CloudProvider struct {
     ID	 int64  `bun:",pk,autoincrement"`
     Name string
     CreatedAt time.Time
+}
 
+type ChangeEvent struct {
+    bun.BaseModel `bun:"table:cloud-providers,alias:e"`
+
+    ID        int64     `bun:",pk,autoincrement"`
+    UserID    int64     `bun:",notnull"` // FK to users
+    Action    string    `bun:",notnull"` // e.g., "CREATE_KEY", "DELETE_KEY"
+    Timestamp time.Time
 }
 
 
