@@ -45,20 +45,20 @@ func (server *Server) defaultHandler(ctx context.Context, b *bot.Bot, update *mo
     })
 }
 
-func checkIfUserExists(ctx context.Context, username int64, db *bun.DB) (bool, err) {
+func checkIfUserExists(ctx context.Context, username int64, db *bun.DB) (f bool, err error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
     user := new(User)
-    exists, err := db.NewSelect().Model(user).Where("username = ? ", usernameHashed).Exists(ctx)
+    exists, err := db.NewSelect().Model(user).Where("username = ?", usernameHashed).Exists(ctx)
     if err != nil {
         return false, err
     }
     return exists, nil
 }
 
-func getUserAttributes(ctx context.Context, username int64, db *bun.DB) (user *User, err error) {
+func getUserAttributes(ctx context.Context, username int64, db *bun.DB) (u *User, e error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
@@ -79,14 +79,12 @@ func (server *Server) startHandler(ctx context.Context, b *bot.Bot, update *mode
     if err != nil {
         log.Printf(err.Error())
         panic(err)
-        return err
     }
 
     user, err := getUserAttributes(ctx, usernameTelegramID, server.db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
-        return err
     }
     if exists && user.IsAdmin {
         b.SendMessage(ctx, &bot.SendMessageParams{
@@ -127,7 +125,6 @@ func (server *Server) signUpHandler(ctx context.Context, b *bot.Bot, update *mod
     if err != nil {
         log.Printf(err.Error())
         panic(err)
-        return err
     }
     if exists {
         b.SendMessage(ctx, &bot.SendMessageParams{
