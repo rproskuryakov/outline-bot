@@ -11,6 +11,7 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aws/constructs-go/constructs/v10 v10.4.2 // indirect
 	github.com/aws/jsii-runtime-go v1.113.0 // indirect
+	github.com/cdktf/cdktf-provider-aws-go/aws/v21 v21.7.0 // indirect
 	github.com/cdktf/cdktf-provider-google-go/google/v16 v16.9.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect

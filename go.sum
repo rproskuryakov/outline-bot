@@ -81,6 +81,8 @@ github.com/aws/jsii-runtime-go v1.112.0 h1:7jusWZUgSTuSPLa2ZRv+siGuyoFSzFNk/TaHq
 github.com/aws/jsii-runtime-go v1.112.0/go.mod h1:jiAbLN2Hz+7At3C59LsQyv8gK3HvfNYF2YFPkWLHll8=
 github.com/aws/jsii-runtime-go v1.113.0 h1:3vJsPVgpQHYTHglndkS26X60wrybc9jgsvU14s7IGGw=
 github.com/aws/jsii-runtime-go v1.113.0/go.mod h1:t5MrjZLtD4qFs1TUxPykOgZQKvCBxdN3VqpCkrElCNA=
+github.com/cdktf/cdktf-provider-aws-go/aws/v21 v21.7.0 h1:M+GXsL11Uzk37eU8cLckIxqRPziRlAjab8W99n+ym3s=
+github.com/cdktf/cdktf-provider-aws-go/aws/v21 v21.7.0/go.mod h1:bE5A4Diggr9LFJTyrtyArNZ/sP3rrZc9RU4TXhQ0rVw=
 github.com/cdktf/cdktf-provider-google-go/google/v16 v16.9.0 h1:nAQSmipoWuIRvxiWM/bNCAsSlW+VGr64zFqrpZXeYw0=
 github.com/cdktf/cdktf-provider-google-go/google/v16 v16.9.0/go.mod h1:B88GJYT9ilVkWraT78ZCjfyvYjNPBBdZp/jefUtWK/U=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
