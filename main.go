@@ -244,6 +244,46 @@ func (server *Server) changeLimitsHandler(ctx context.Context, b *bot.Bot, updat
     })
 }
 
+func (server *Server) addAdminHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    usernameTelegramID := update.Message.From.ID
+    // check if user exists
+    exists, err := checkIfUserExists(ctx, usernameTelegramID, server.db)
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+    }
+
+    user, err := getUserAttributes(ctx, usernameTelegramID, server.db)
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+    }
+    if !exists {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "User does not exists.",
+        })
+        return
+    }
+    if !user.IsAdmin {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "You are not authorized to add new admins.",
+        })
+        return
+    }
+    // update user admin rights
+//     _, err = db.NewUpdate().
+//     Model((*User)(nil)).
+//     Set("last_login = ?", time.Now()).
+//     Where("status = ?", "active").
+//     Exec(ctx)
+//     b.SendMessage(ctx, &bot.SendMessageParams{
+// 		ChatID:      update.Message.Chat.ID,
+// 		Text:        "addAdmin",
+//     })
+}
+
 func (server *Server) createServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
@@ -321,6 +361,7 @@ func main() {
 		bot.WithMessageTextHandler("/createServer", bot.MatchTypeExact, server.createServerHandler),
 		bot.WithMessageTextHandler("/changeLimits", bot.MatchTypeExact, server.changeLimitsHandler),
 		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, server.viewTrafficUsedHandler),
+		bot.WithMessageTextHandler("/addAdmin", bot.MatchTypeExact, server.addAdminHandler),
 	}
     b, err := bot.New(telegramToken, opts...)
 	if err != nil {
