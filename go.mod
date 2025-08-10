@@ -14,6 +14,8 @@ require (
 	github.com/cdktf/cdktf-provider-aws-go/aws/v21 v21.7.0 // indirect
 	github.com/cdktf/cdktf-provider-digitalocean-go/digitalocean/v13 v13.7.0 // indirect
 	github.com/cdktf/cdktf-provider-google-go/google/v16 v16.9.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-telegram/bot v1.16.0 // indirect
@@ -31,6 +33,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/otiai10/copy v1.6.0 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
+	github.com/redis/go-redis/v9 v9.12.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/spf13/cobra v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
