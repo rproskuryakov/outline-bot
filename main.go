@@ -17,6 +17,7 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
+	"github.com/redis/go-redis/v9"
 )
 
 
@@ -78,6 +79,7 @@ type ChangeEvent struct {
 
 type Server struct {
     db *bun.DB
+    redisDb *redis.Client
 }
 
 func (server *Server) defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -183,7 +185,6 @@ func (server *Server) signUpHandler(ctx context.Context, b *bot.Bot, update *mod
 		                 "/viewTrafficUsed",
         })
         return
-        return
     } else {
         hasher := md5.New()
         hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
@@ -230,16 +231,54 @@ func (server *Server) changeLimitsHandler(ctx context.Context, b *bot.Bot, updat
 }
 
 func (server *Server) createServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-    b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
-		Text:        "createServer",
-    })
+    usernameTelegramID := update.Message.From.ID
+    // check if user exists
+    exists, existsError := checkIfUserExists(ctx, usernameTelegramID, server.db)
+    if existsError != nil {
+        log.Printf(existsError.Error())
+        panic(existsError)
+    }
+    if !exists {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "User does not exist.",
+        })
+        log.Printf("User does not exist.")
+        return
+    }
+    // check if user is admin
+    user, getAttrsError := getUserAttributes(ctx, usernameTelegramID, server.db)
+    if getAttrsError != nil {
+        log.Printf(getAttrsError.Error())
+        panic(getAttrsError)
+    }
+    if !user.IsAdmin {
+        b.SendMessage(ctx, &bot.SendMessageParams{
+		    ChatID:      update.Message.Chat.ID,
+		    Text:        "You are not authorized to create a server.",
+        })
+        return
+    }
+
+    serverRecord := &ServerRecord{
+        CreatedAt: time.Now(),
+        Owner: *user,
+        IsActive: true,
+    }
+    _, insertErr := server.db.NewInsert().Model(serverRecord).Exec(ctx)
+
+    if insertErr != nil {
+        log.Printf(insertErr.Error())
+        panic(insertErr)
+    }
+    log.Printf("Server record is created.")
 }
 
 
 func main() {
     var telegramToken string = os.Getenv("TELEGRAM_API_TOKEN")
     var postgresDsn string = os.Getenv("POSTGRES_DSN")
+    var redisPassword string = os.Getenv("REDIS_PASSWORD")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -251,7 +290,13 @@ func main() {
     if err != nil {
         panic(err)
     }
-    server := &Server{db: db}
+    redisDB := redis.NewClient(&redis.Options{
+        Addr:	  "cache:6379",
+        Password: redisPassword, // No password set
+        DB:		  0,  // Use default DB
+        Protocol: 2,  // Connection protocol
+    })
+    server := &Server{db: db, redisDb: redisDB}
     log.Printf("Table Users created")
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.defaultHandler),
