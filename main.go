@@ -83,6 +83,20 @@ type Server struct {
 }
 
 func (server *Server) defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+    usernameTelegramID := update.Message.From.ID
+    hasher := md5.New()
+    hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
+    usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+    err := server.redisDb.Set(ctx, usernameHashed, "/default", 200).Err()
+    if err != nil {
+        panic(err)
+    }
+    val, err := server.redisDb.Get(ctx, usernameHashed).Result()
+    log.Printf(val)
+    if err != nil {
+        panic(err)
+    }
     b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
 		Text:        "I am YetAnotherVPN Bot. \n"+
@@ -287,6 +301,7 @@ func main() {
     sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(postgresDsn)))
     db := bun.NewDB(sqldb, pgdialect.New())
     err := db.ResetModel(ctx, (*User)(nil))
+    log.Printf("Table Users created")
     if err != nil {
         panic(err)
     }
@@ -297,7 +312,6 @@ func main() {
         Protocol: 2,  // Connection protocol
     })
     server := &Server{db: db, redisDb: redisDB}
-    log.Printf("Table Users created")
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.defaultHandler),
 		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, server.startHandler),
