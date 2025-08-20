@@ -33,7 +33,7 @@ type User struct {
 }
 
 type AccessKey struct {
-    bun.BaseModel `bun:"table:vpn-access-keys,alias:k"`
+    bun.BaseModel `bun:"table:vpn-access-keys,alias:ak"`
 
     ID	 int64  `bun:",pk,autoincrement"`
     Name string
@@ -47,7 +47,7 @@ type AccessKey struct {
 }
 
 type ServerRecord struct {
-    bun.BaseModel `bun:"table:vpn-servers,alias:s"`
+    bun.BaseModel `bun:"table:vpn-servers,alias:sr"`
 
     ID	 int64  `bun:",pk,autoincrement"`
     CreatedAt time.Time
@@ -60,7 +60,7 @@ type ServerRecord struct {
 }
 
 type CloudProvider struct {
-    bun.BaseModel `bun:"table:cloud-providers,alias:c"`
+    bun.BaseModel `bun:"table:cloud-providers,alias:cp"`
 
     ID	 int64  `bun:",pk,autoincrement"`
     Name string
@@ -68,14 +68,36 @@ type CloudProvider struct {
 }
 
 type ChangeEvent struct {
-    bun.BaseModel `bun:"table:cloud-providers,alias:e"`
+    bun.BaseModel `bun:"table:cloud-providers,alias:ch"`
 
     ID        int64     `bun:",pk,autoincrement"`
-    UserID    int64     `bun:",notnull"` // FK to users
-    Action    string    `bun:",notnull"` // e.g., "CREATE_KEY", "DELETE_KEY"
-    Timestamp time.Time
+    UserID    int64     `bun:",notnull"`
+    User User `bun:"rel:belongs-to,join:user_id=id"` // FK to users
+    Action    string    `bun:",notnull"`
+    EventTimestamp time.Time `bun:",notnull"`
 }
 
+type Promocode struct {
+    bun.BaseModel `bun:"table:promocodes,alias:p"`
+
+    ID        int64 `bun:",pk,autoincrement"`
+    Name    string  `bun:",notnull"`
+    Discount int64  `bun:",notnull"`
+    CreatedAtTimestamp time.Time    `bun:",notnull"`
+    ValidFromTimestamp time.Time    `bun:",notnull"`
+    ValidToTimestamp time.Time  `bun:",notnull"`
+}
+
+type PromocodeUsers struct {
+    bun.BaseModel `bun:"table:promocode-users,alias:pu"`
+
+    ID        int64     `bun:",pk,autoincrement"`
+    UserID    int64     `bun:",notnull"`
+    User User `bun:"rel:belongs-to,join:user_id=id"`
+    PromocodeID int64   `bun:",notnull"`
+    Promocode Promocode `bun:"rel:belongs-to,join:promocode_id=id"`
+    ActivationTimestamp    time.Time    `bun:",notnull"`
+}
 
 type Server struct {
     db *bun.DB
@@ -261,7 +283,7 @@ func (server *Server) addAdminHandler(ctx context.Context, b *bot.Bot, update *m
     if !exists {
         b.SendMessage(ctx, &bot.SendMessageParams{
 		    ChatID:      update.Message.Chat.ID,
-		    Text:        "User does not exists.",
+		    Text:        "Your user does not exist.",
         })
         return
     }
