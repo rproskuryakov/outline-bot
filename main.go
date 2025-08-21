@@ -18,86 +18,10 @@ import (
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/rproskuryakov/outline-bot/src"
 )
 
-
-type User struct {
-    bun.BaseModel `bun:"table:vpn-users,alias:u"`
-
-	ID	 int64  `bun:",pk,autoincrement"`
-	Name string
-	Password string
-	IsAdmin bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-type AccessKey struct {
-    bun.BaseModel `bun:"table:vpn-access-keys,alias:ak"`
-
-    ID	 int64  `bun:",pk,autoincrement"`
-    Name string
-    URL string
-    APIKey string
-    UserID int64
-	User User `bun:"rel:belongs-to,join:user_id=id"`
-	ServerID int64
-	Server ServerRecord `bun:"rel:belongs-to,join:server_id=id"`
-	ByteLimit int64
-}
-
-type ServerRecord struct {
-    bun.BaseModel `bun:"table:vpn-servers,alias:sr"`
-
-    ID	 int64  `bun:",pk,autoincrement"`
-    CreatedAt time.Time
-    APIKey string
-    OwnerID int64
-	Owner User `bun:"rel:belongs-to,join:owner_id=id"`
-	IsActive bool
-	CloudProvider CloudProvider `bun:"rel:belongs-to,join:cloud_provider_id=id"`
-	CloudProviderID int64
-}
-
-type CloudProvider struct {
-    bun.BaseModel `bun:"table:cloud-providers,alias:cp"`
-
-    ID	 int64  `bun:",pk,autoincrement"`
-    Name string
-    CreatedAt time.Time
-}
-
-type ChangeEvent struct {
-    bun.BaseModel `bun:"table:cloud-providers,alias:ch"`
-
-    ID        int64     `bun:",pk,autoincrement"`
-    UserID    int64     `bun:",notnull"`
-    User User `bun:"rel:belongs-to,join:user_id=id"` // FK to users
-    Action    string    `bun:",notnull"`
-    EventTimestamp time.Time `bun:",notnull"`
-}
-
-type Promocode struct {
-    bun.BaseModel `bun:"table:promocodes,alias:p"`
-
-    ID        int64 `bun:",pk,autoincrement"`
-    Name    string  `bun:",notnull"`
-    Discount int64  `bun:",notnull"`
-    CreatedAtTimestamp time.Time    `bun:",notnull"`
-    ValidFromTimestamp time.Time    `bun:",notnull"`
-    ValidToTimestamp time.Time  `bun:",notnull"`
-}
-
-type PromocodeUsers struct {
-    bun.BaseModel `bun:"table:promocode-users,alias:pu"`
-
-    ID        int64     `bun:",pk,autoincrement"`
-    UserID    int64     `bun:",notnull"`
-    User User `bun:"rel:belongs-to,join:user_id=id"`
-    PromocodeID int64   `bun:",notnull"`
-    Promocode Promocode `bun:"rel:belongs-to,join:promocode_id=id"`
-    ActivationTimestamp    time.Time    `bun:",notnull"`
-}
 
 type Server struct {
     db *bun.DB
@@ -135,7 +59,7 @@ func checkIfUserExists(ctx context.Context, username int64, db *bun.DB) (f bool,
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-    user := new(User)
+    user := new(src.User)
     exists, err := db.NewSelect().Model(user).Where("username = ?", usernameHashed).Exists(ctx)
     if err != nil {
         return false, err
@@ -143,12 +67,12 @@ func checkIfUserExists(ctx context.Context, username int64, db *bun.DB) (f bool,
     return exists, nil
 }
 
-func getUserAttributes(ctx context.Context, username int64, db *bun.DB) (u *User, e error) {
+func getUserAttributes(ctx context.Context, username int64, db *bun.DB) (u *src.User, e error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-    user := new(User)
+    user := new(src.User)
     err := db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
     if err != nil {
         return user, err
@@ -226,7 +150,7 @@ func (server *Server) signUpHandler(ctx context.Context, b *bot.Bot, update *mod
         hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
         usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-        user := &User{Name: usernameHashed, IsAdmin: false}
+        user := &src.User{Name: usernameHashed, IsAdmin: false}
         _, err := server.db.NewInsert().Model(user).Exec(ctx)
 
         if err != nil {
@@ -336,7 +260,7 @@ func (server *Server) createServerHandler(ctx context.Context, b *bot.Bot, updat
         return
     }
 
-    serverRecord := &ServerRecord{
+    serverRecord := &src.ServerRecord{
         CreatedAt: time.Now(),
         Owner: *user,
         IsActive: true,
@@ -362,7 +286,7 @@ func main() {
     // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
     sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(postgresDsn)))
     db := bun.NewDB(sqldb, pgdialect.New())
-    err := db.ResetModel(ctx, (*User)(nil))
+    err := db.ResetModel(ctx, (*src.User)(nil))
     log.Printf("Table Users created")
     if err != nil {
         panic(err)

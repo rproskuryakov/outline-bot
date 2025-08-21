@@ -1,4 +1,4 @@
-package outlinevpn
+package src
 
 import (
 	"crypto/tls"

@@ -1,4 +1,4 @@
-module outline-bot
+module github.com/rproskuryakov/outline-bot
 
 go 1.23.0
 
