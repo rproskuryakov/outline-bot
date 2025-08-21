@@ -35,3 +35,7 @@ func downloadGithubRepository(url string, path string) {
 		os.Exit(1)
 	}
 }
+
+func main() {
+    downloadGithubRepository("github.com/Jigsaw-Code/outline-server/", "tmp/gogetter")
+}
