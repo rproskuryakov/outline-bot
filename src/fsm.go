@@ -21,6 +21,7 @@ type Transition struct {
 type StateMachine struct {
 	current     State
 	transitions map[State]map[Event]State
+	Data map[string]string
 }
 
 type StateMachineFactory struct {
@@ -62,3 +63,64 @@ func (sm *StateMachine) Trigger(event Event) error {
 	sm.current = next
 	return nil
 }
+
+func GetFiniteStateMachine() *StateMachine {
+    // init state machine
+    Factory := NewStateMachineFactory()
+
+    // Define states and events
+    const (
+        StateBeginning State = "Beginning"
+        StateWaitingForTheCommand State = "WaitingForTheCommand"
+	    StateCheckingIfUserExists    State = "CheckingIfUserExists"
+	    StateCheckingIfUserHasAdminRights State = "CheckingIfUserHasAdminRights"
+	    StateSigningUpUser  State = "SigningUpUser"
+	    StateCheckingPromocodeActivity State = "CheckingPromocodeActivity"
+	    StateRegisteringPromocode State = "RegisteringPromocode"
+	    StateCreatingAPIKey State = "CreatingAPIKey"
+	    StateEnd State = "End"
+
+	    EventStart  Event = "Start"
+
+	    EventSignUpRequest Event = "SignUpRequest"
+	    EventUserSignedUpSuccessfully Event = "UserSignedUpSuccessfully"
+	    EventUserCouldNotBeSigneUp Event = "UserCouldNotBeSignedUp"
+
+	    EventIssueAPIKey Event = "IssueAPIKey"
+	    EventReissueAPIKey Event = "ReissueAPIKey"
+	    EventCreateServer Event = "CreateServer"
+	    EventChangeLimits Event = "ChangeLimits"
+	    EventAddAdmin Event = "AddAdmin"
+	    EventViewTrafficUsed Event = "ViewTrafficUsed"
+	    EventUserExists  Event = "UserExists"
+	    EventUserDoesNotExists  Event = "UserDoesNotExists"
+	    EventUserHasAdminRights  Event = "UserHasAdminRights"
+	    EventUserDoesNotHaveAdminRights Event = "UserDoesNotHaveAdminRights"
+	    EventResume Event = "RESUME"
+	    EventStop   Event = "STOP"
+    )
+
+    // SignUpRequest
+    Factory.AddTransition(StateBeginning, EventSignUpRequest, StateCheckingIfUserExists)
+    Factory.AddTransition(StateCheckingIfUserExists, EventUserExists, StateEnd)
+    Factory.AddTransition(StateCheckingIfUserExists, EventUserDoesNotExists, StateSigningUpUser)
+    Factory.AddTransition(StateSigningUpUser, EventUserSignedUpSuccessfully, StateEnd)
+    Factory.AddTransition(StateSigningUpUser, EventUserCouldNotBeSigneUp, StateEnd)
+
+    // Create FSM instance with initial state
+    fsm := Factory.Create(StateBeginning)
+
+    return fsm
+}
+
+
+
+// Simulate events
+// 	events := []Event{EventStart, EventPause, EventResume, EventStop}
+// 	for _, e := range events {
+// 		if err := fsm.Trigger(e); err != nil {
+// 			log.Println("Error:", err)
+// 			break
+// 		}
+// 		log.Println("Current State:", fsm.Current())
+// 	}

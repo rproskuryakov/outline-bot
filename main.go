@@ -26,6 +26,7 @@ import (
 type Server struct {
     db *bun.DB
     redisDb *redis.Client
+    stateMachine *src.StateMachine
 }
 
 func (server *Server) defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -297,7 +298,8 @@ func main() {
         DB:		  0,  // Use default DB
         Protocol: 2,  // Connection protocol
     })
-    server := &Server{db: db, redisDb: redisDB}
+
+    server := &Server{db: db, redisDb: redisDB, stateMachine: src.GetFiniteStateMachine()}
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.defaultHandler),
 		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, server.startHandler),
