@@ -20,7 +20,7 @@ type Server struct {
     Db *bun.DB
     RedisDb *redis.Client
     StateMachine *StateMachine
-    OutlineClients []*OutlineVPN
+    OutlineClients *OutlineVPNClients
 }
 
 func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
