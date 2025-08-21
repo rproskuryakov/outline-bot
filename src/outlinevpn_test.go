@@ -7,6 +7,7 @@ import (
 	"os"
 
 	getter "github.com/hashicorp/go-getter"
+	"github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
 func downloadGithubRepository(url string, path string) {
@@ -36,6 +37,45 @@ func downloadGithubRepository(url string, path string) {
 	}
 }
 
+func createDockerComposeStack(dockerComposeContent string) (*stack compose.ComposeStack) {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    stack, err := compose.NewDockerComposeWith(compose.WithStackReaders(strings.NewReader(dockerComposeContent)))
+    if err != nil {
+        log.Printf("Failed to create stack: %v", err)
+        return
+    }
+
+    err = stack.
+        WithEnv(map[string]string{
+            "bar": "BAR",
+        }).
+        WaitForService("nginx", wait.NewHTTPStrategy("/").WithPort("80/tcp").WithStartupTimeout(10*time.Second)).
+        Up(ctx, compose.Wait(true))
+    if err != nil {
+        log.Printf("Failed to start stack: %v", err)
+        return
+    }
+    defer func() {
+        err = stack.Down(
+            context.Background(),
+            compose.RemoveOrphans(true),
+            compose.RemoveVolumes(true),
+            compose.RemoveImagesLocal,
+        )
+        if err != nil {
+            log.Printf("Failed to stop stack: %v", err)
+        }
+    }()
+    return &stack
+//     serviceNames := stack.Services()
+//
+//     fmt.Println(serviceNames)
+}
+
+
 func main() {
-    downloadGithubRepository("github.com/Jigsaw-Code/outline-server/", "tmp/gogetter")
+    destDir := "tmp/gogetter"
+    downloadGithubRepository("github.com/Jigsaw-Code/outline-server/", destDir)
 }
