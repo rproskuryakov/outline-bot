@@ -21,6 +21,10 @@ type OutlineVPN struct {
 	client *http.Client
 }
 
+type OutlineVPNClients struct {
+    clients map[string]*OutlineVPN
+}
+
 // OutlineKey represents access key parameters for Outline server
 type OutlineKey struct {
 	ID        string `json:"id"`
