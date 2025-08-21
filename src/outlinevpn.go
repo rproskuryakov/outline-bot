@@ -10,6 +10,7 @@ import (
     "net/http"
     "net/url"
 	"strconv"
+	"bytes"
 	"strings"
 	"time"
 )
@@ -17,7 +18,7 @@ import (
 // OutlineVPN represents connection source to manage Outline VPN server
 type OutlineVPN struct {
 	apiURL  string
-	session *http.Client
+	client *http.Client
 }
 
 // OutlineKey represents access key parameters for Outline server
@@ -61,8 +62,6 @@ type BytesTransferred struct {
 // Set default timeout to 5 seconds
 var defaultTimeout = time.Second * 5
 
-func main() {
-}
 
 // NewOutlineVPN creates a new Outline VPN management connection source.
 func NewOutlineVPN(apiURL string, certSha256 string) (*OutlineVPN, error) {
@@ -70,18 +69,16 @@ func NewOutlineVPN(apiURL string, certSha256 string) (*OutlineVPN, error) {
 	/*if certSha256 == "" {
 		return nil, fmt.Errorf("no certificate SHA256 provided. Running without certificate is no longer supported")
 	}*/
-
 	// Creating a client
-	client := &http.Client{
-		TLSConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
+	tr := &http.Transport{
+	    TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+	client := &http.Client{Transport: tr}
 
 	// Create OutlineVPN instance with configured TLS client
 	return &OutlineVPN{
 		apiURL:  apiURL,
-		session: client,
+		client: client,
 	}, nil
 }
 
@@ -100,57 +97,68 @@ func NewOutlineKey() *OutlineKey {
 }
 
 func (vpn *OutlineVPN) GetKeys() ([]OutlineKey, error) {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
 
-	// Set request URI to apiURL/access-keys/
-	request.SetRequestURI(fmt.Sprintf("%s/access-keys/", vpn.apiURL))
-
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return nil, err
-	}
+    req, err := http.NewRequest("GET", fmt.Sprintf("%s/access-keys/", vpn.apiURL), nil)
+    if err != nil {
+        panic(err)
+    }
+    resp, err := vpn.client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
 
 	// If keys is gathered, status code always must be 200
-	if response.StatusCode() != http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("unable to retrieve keys")
 	}
 
-	var keys struct {
+	var result struct {
 		AccessKeys []OutlineKey `json:"accessKeys"`
 	}
 
-	// Trying unmarshal response body as AccessKeys array
-	if err := json.Unmarshal(response.Body(), &keys); err != nil {
-		return nil, err
+    body, err := ioutil.ReadAll(resp.Body)
+
+    if err != nil {
+        fmt.Println("Error reading response body:", err)
+        return result.AccessKeys, err
+    }
+	// Trying to unmarshal response body as `ServerInfo`
+	if err := json.Unmarshal(body, &result); err != nil {
+		return result.AccessKeys, err
 	}
 
-	return keys.AccessKeys, nil
+	return result.AccessKeys, nil
 }
 
 func (vpn *OutlineVPN) GetKey(id string) (*OutlineKey, error) {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
+
+    req, err := http.NewRequest("GET", fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, id), nil)
+    if err != nil {
+        panic(err)
+    }
+    resp, err := vpn.client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
 
 	var result OutlineKey
 
-	// Set request URI to apiURL/access-keys/id
-	request.SetRequestURI(fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, id))
-	// Executing request
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return &result, err
-	}
-
 	// If key is added, status code always must be 200
-	if response.StatusCode() != http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		return &result, errors.New("unable to retrieve key data")
 	}
 
 	// Trying unmarshal response body as `OutlineKey`
-	if err := json.Unmarshal(response.Body(), &result); err != nil {
+    body, err := ioutil.ReadAll(resp.Body)
+
+    if err != nil {
+        fmt.Println("Error reading response body:", err)
+        panic(err)
+    }
+	// Trying to unmarshal response body as `ServerInfo`
+	if err := json.Unmarshal(body, &result); err != nil {
 		return &result, err
 	}
 
@@ -173,41 +181,33 @@ func (vpn *OutlineVPN) GetOrCreateKey(id string) (*OutlineKey, error) {
 }
 
 func (vpn *OutlineVPN) AddKey(key *OutlineKey) (*OutlineKey, error) {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
 
-	if key.ID == "" {
-		// Set request URI to apiURL/access-keys/id
-		request.SetRequestURI(fmt.Sprintf("%s/access-keys", vpn.apiURL))
-		request.Header.SetMethod(fasthttp.MethodPost)
-	} else {
-		// Set request URI to apiURL/access-keys/
-		request.SetRequestURI(fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, key.ID))
-		request.Header.SetMethod(fasthttp.MethodPut)
-	}
+    jsonData, err := json.Marshal(key)
+    if err != nil {
+        fmt.Println("Error marshalling JSON:", err)
+        panic(err)
+    }
+    var req *http.Request
+    var requestErr error
+    if key.ID == "" {
+        req, requestErr = http.NewRequest("POST", fmt.Sprintf("%s/access-keys", vpn.apiURL), bytes.NewBuffer(jsonData))
+    } else {
+        req, requestErr = http.NewRequest("PUT", fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, key.ID), nil)
+    }
+    if requestErr != nil {
+        panic(err)
+    }
+    resp, err := vpn.client.Do(req)
+    if err != nil {
+        panic(err)
+    }
 
-	// Trying to marshal key as a json
-	requestBody, err := json.Marshal(*key)
-	if err != nil {
-		return key, err
-	}
-
-	// Set body json
-	request.SetBody(requestBody)
-	// Executing request
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return key, err
-	}
-
-	// If key is created, status code always must be 201
-	if response.StatusCode() != http.StatusCreated {
+	if resp.StatusCode != http.StatusCreated {
 		return key, errors.New("response error while adding new key")
 	}
-
+    body, err := ioutil.ReadAll(resp.Body)
 	// Trying to unmarshal response body as `OutlineKey`
-	if err := json.Unmarshal(response.Body(), &key); err != nil {
+	if err := json.Unmarshal(body, &key); err != nil {
 		return key, err
 	}
 
@@ -219,21 +219,18 @@ func (vpn *OutlineVPN) DeleteKey(key *OutlineKey) error {
 }
 
 func (vpn *OutlineVPN) DeleteKeyByID(id string) error {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
-
-	// Set request URI to apiURL/access-keys/id
-	request.SetRequestURI(fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, id))
-	request.Header.SetMethod(fasthttp.MethodDelete)
-	// Executing request
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return err
-	}
+    req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, id), nil)
+    if err != nil {
+        panic(err)
+    }
+    resp, err := vpn.client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
 
 	// If key is deleted, status code always must be 204
-	if response.StatusCode() != status.StatusNoContent {
+	if resp.StatusCode != http.StatusNoContent {
 		return errors.New("response error while adding new key")
 	}
 
@@ -249,80 +246,108 @@ func (vpn *OutlineVPN) RenameKey(key *OutlineKey, name string) error {
 	return nil
 }
 
-func (vpn *OutlineVPN) RenameKeyByID(id string, name string) error {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
+type RenameKeyRequestSchema struct {
+    Name string `json:"name"`
+}
 
-	// Set request URI to apiURL/access-keys/id/name
-	request.SetRequestURI(fmt.Sprintf("%s/access-keys/%s/name", vpn.apiURL, id))
-	request.Header.SetMethod(fasthttp.MethodPut)
-	request.Header.SetContentType("application/x-www-form-urlencoded")
-	request.SetBodyString(fmt.Sprintf("name=%s", name))
-	// Executing request
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return err
-	}
+func (vpn *OutlineVPN) RenameKeyByID(id string, name string) error {
+    requestBody := RenameKeyRequestSchema{Name: name}
+
+    // Marshal the struct to JSON
+    jsonData, err := json.Marshal(&requestBody)
+    if err != nil {
+        fmt.Println("Error marshalling JSON:", err)
+        panic(err)
+    }
+    req, err := http.NewRequest("PUT", fmt.Sprintf("%s/access-keys/%s/name", vpn.apiURL, id), bytes.NewBuffer(jsonData))
+    if err != nil {
+        panic(err)
+    }
+    req.Header.Add("content-type", "application/x-www-form-urlencoded")
+    resp, err := vpn.client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+
+    defer resp.Body.Close()
 
 	// If key is renamed, status code always must be 204
-	if response.StatusCode() != http.StatusNoContent {
+	if resp.StatusCode != http.StatusNoContent {
 		return errors.New("response error while renaming key")
 	}
 
 	return nil
 }
 
+type TransferMetricResponseSchema struct {
+    Name string `json:"name"`
+    Age  int    `json:"age"`
+}
+
 func (vpn *OutlineVPN) GetTransferMetrics() (*BytesTransferred, error) {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
 
-	var result BytesTransferred
+    req, err := http.NewRequest("GET", fmt.Sprintf("%s/metrics/transfer"), nil)
+    if err != nil {
+        panic(err)
+    }
+    resp, err := vpn.client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
 
-	// Set request URI to apiURL/metrics/transfer
-	request.SetRequestURI(fmt.Sprintf("%s/metrics/transfer", vpn.apiURL))
-	// Executing request
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return &result, err
-	}
+    var result BytesTransferred
 
 	// If data is gathered, status code always must be lower than 400
-	if response.StatusCode() >= status.StatusBadRequest {
+	if resp.StatusCode >= http.StatusBadRequest {
 		return &result, errors.New("unable to get metrics for keys")
 	}
 
 	// Trying to unmarshal response body as `BytesTransferred`
-	if err := json.Unmarshal(response.Body(), &result); err != nil {
+
+    body, err := ioutil.ReadAll(resp.Body)
+
+    if err != nil {
+        fmt.Println("Error reading response body:", err)
+        panic(err)
+    }
+
+	if err := json.Unmarshal(body, &result); err != nil {
 		return &result, err
 	}
 
 	return &result, nil
 }
 
+
+type ServerInfoResponseSchema struct {
+    Name string `json:"name"`
+    Age  int    `json:"age"`
+}
+
 func (vpn *OutlineVPN) GetServerInfo() (*ServerInfo, error) {
-	request := fasthttp.AcquireRequest()
-	response := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(request)
-	defer fasthttp.ReleaseResponse(response)
+    var result ServerInfo
 
-	var result ServerInfo
-
-	// Set request URI to apiURL/server
-	request.SetRequestURI(fmt.Sprintf("%s/server", vpn.apiURL))
-	// Executing request
-	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return &result, err
-	}
+    req, err := http.NewRequest("GET", fmt.Sprintf("%s/server", vpn.apiURL), nil)
+    if err != nil {
+        panic(err)
+    }
+    resp, err := vpn.client.Do(req)
+    defer resp.Body.Close()
 
 	// If data is gathered, status code always must be lower than 400
-	if response.StatusCode() >= status.StatusBadRequest {
+	if resp.StatusCode >= http.StatusBadRequest {
 		return &result, errors.New("unable to get metrics for keys")
 	}
 
+    body, err := ioutil.ReadAll(resp.Body)
+
+    if err != nil {
+        fmt.Println("Error reading response body:", err)
+        panic(err)
+    }
 	// Trying to unmarshal response body as `ServerInfo`
-	if err := json.Unmarshal(response.Body(), &result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return &result, err
 	}
 
