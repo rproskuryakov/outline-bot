@@ -18,6 +18,7 @@ require (
 	github.com/Jigsaw-Code/outline-sdk v0.0.20 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.44.122 // indirect
@@ -40,10 +41,12 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/buger/goterm v1.0.4 // indirect
 	github.com/cdktf/cdktf-provider-aws-go/aws/v21 v21.7.0 // indirect
-	github.com/cdktf/cdktf-provider-digitalocean-go/digitalocean/v13 v13.7.0 // indirect
+	github.com/cdktf/cdktf-provider-digitalocean-go/digitalocean/v11 v11.20.0 // indirect
+	github.com/cdktf/cdktf-provider-digitalocean-go/digitalocean/v13 v13.10.0 // indirect
 	github.com/cdktf/cdktf-provider-google-go/google/v16 v16.9.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/compose-spec/compose-go/v2 v2.6.0 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/containerd/containerd/api v1.8.0 // indirect
@@ -107,8 +110,10 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-getter v1.7.9 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
+	github.com/hashicorp/hc-install v0.9.2 // indirect
 	github.com/hashicorp/terraform-cdk-go/cdktf v0.21.0 // indirect
 	github.com/hashicorp/terraform-exec v0.23.0 // indirect
 	github.com/hashicorp/terraform-json v0.24.0 // indirect
