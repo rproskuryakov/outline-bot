@@ -41,7 +41,7 @@ func main() {
         Protocol: 2,  // Connection protocol
     })
 
-    server := &src.Server{Db: db, RedisDb: redisDB, StateMachine: src.GetFiniteStateMachine()}
+    server := &src.Server{Db: db, RedisDb: redisDB}
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.DefaultHandler),
 		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, server.StartHandler),

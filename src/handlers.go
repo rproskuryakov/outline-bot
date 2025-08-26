@@ -19,7 +19,6 @@ import (
 type Server struct {
     Db *bun.DB
     RedisDb *redis.Client
-    StateMachine *StateMachine
     OutlineClients *OutlineVPNClients
 }
 
