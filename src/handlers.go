@@ -49,18 +49,18 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
     })
 }
 
-func checkIfUserExists(ctx context.Context, username int64, Db *bun.DB) (f bool, err error) {
-    hasher := md5.New()
-    hasher.Write([]byte(strconv.FormatInt(username, 10)))
-    usernameHashed := hex.EncodeToString(hasher.Sum(nil))
-
-    user := new(User)
-    exists, err := Db.NewSelect().Model(user).Where("username = ?", usernameHashed).Exists(ctx)
-    if err != nil {
-        return false, err
-    }
-    return exists, nil
-}
+// func checkIfUserExists(ctx context.Context, username int64, Db *bun.DB) (f bool, err error) {
+//     hasher := md5.New()
+//     hasher.Write([]byte(strconv.FormatInt(username, 10)))
+//     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+//
+//     user := new(User)
+//     exists, err := Db.NewSelect().Model(user).Where("username = ?", usernameHashed).Exists(ctx)
+//     if err != nil {
+//         return false, err
+//     }
+//     return exists, nil
+// }
 
 func getUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *User, e error) {
     hasher := md5.New()
@@ -79,16 +79,14 @@ func getUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *User
 func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    exists, err := checkIfUserExists(ctx, usernameTelegramID, server.Db)
-    if err != nil {
-        log.Printf(err.Error())
-        panic(err)
-    }
-
     user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
+    }
+    exists := false
+    if *user != (User{}) {
+        exists = true
     }
     if exists && user.IsAdmin {
         b.SendMessage(ctx, &bot.SendMessageParams{
@@ -100,7 +98,8 @@ func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *mode
 		                 "/viewTrafficUsed",
         })
         return
-    } else if exists && user.IsAdmin {
+    }
+    if exists && user.IsAdmin {
         b.SendMessage(ctx, &bot.SendMessageParams{
 		    ChatID:      update.Message.Chat.ID,
 		    Text:        "Admin " + strconv.FormatInt(usernameTelegramID, 10) + " is found. \n" +
@@ -110,7 +109,8 @@ func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *mode
 		                 "/viewOverallTrafficUsed",
         })
         return
-    } else if !exists {
+    }
+    if !exists {
         b.SendMessage(ctx, &bot.SendMessageParams{
 		    ChatID:      update.Message.Chat.ID,
 		    Text:        "User " + strconv.FormatInt(usernameTelegramID, 10) + " is not found. \n" +
@@ -124,11 +124,16 @@ func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *mode
 
 func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
-    exists, err := checkIfUserExists(ctx, usernameTelegramID, server.Db)
-
+    // check if user exists
+    // check if user exists
+    user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
+    }
+    exists := false
+    if *user != (User{}) {
+        exists = true
     }
     if exists {
         b.SendMessage(ctx, &bot.SendMessageParams{
@@ -188,16 +193,14 @@ func (server *Server) ChangeLimitsHandler(ctx context.Context, b *bot.Bot, updat
 func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    exists, err := checkIfUserExists(ctx, usernameTelegramID, server.Db)
-    if err != nil {
-        log.Printf(err.Error())
-        panic(err)
-    }
-
     user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
+    }
+    exists := false
+    if *user != (User{}) {
+        exists = true
     }
     if !exists {
         b.SendMessage(ctx, &bot.SendMessageParams{
@@ -228,10 +231,14 @@ func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *m
 func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    exists, existsError := checkIfUserExists(ctx, usernameTelegramID, server.Db)
-    if existsError != nil {
-        log.Printf(existsError.Error())
-        panic(existsError)
+    user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+    }
+    exists := false
+    if *user != (User{}) {
+        exists = true
     }
     if !exists {
         b.SendMessage(ctx, &bot.SendMessageParams{
