@@ -44,14 +44,14 @@ func main() {
     server := &src.Server{Db: db, RedisDb: redisDB}
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.DefaultHandler),
-		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, server.StartHandler),
+		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, src.CheckAuthorized(server, server.StartHandler)),
 		bot.WithMessageTextHandler("/signUp", bot.MatchTypeExact, server.SignUpHandler),
-		bot.WithMessageTextHandler("/issueApiKey", bot.MatchTypeExact, server.IssueApiKeyHandler),
-		bot.WithMessageTextHandler("/reissueApiKey", bot.MatchTypeExact, server.ReissueApiKeyHandler),
-		bot.WithMessageTextHandler("/createServer", bot.MatchTypeExact, server.CreateServerHandler),
+		bot.WithMessageTextHandler("/issueApiKey", bot.MatchTypeExact, src.CheckAuthorized(server, server.IssueApiKeyHandler)),
+		bot.WithMessageTextHandler("/reissueApiKey", bot.MatchTypeExact, src.CheckAuthorized(server, server.ReissueApiKeyHandler)),
+		bot.WithMessageTextHandler("/createServer", bot.MatchTypeExact, src.CheckAuthorizedAdmin(server, server.CreateServerHandler)),
 		bot.WithMessageTextHandler("/changeLimits", bot.MatchTypeExact, server.ChangeLimitsHandler),
-		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, server.ViewTrafficUsedHandler),
-		bot.WithMessageTextHandler("/addAdmin", bot.MatchTypeExact, server.AddAdminHandler),
+		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, src.CheckAuthorized(server, server.ViewTrafficUsedHandler)),
+		bot.WithMessageTextHandler("/addAdmin", bot.MatchTypeExact, src.CheckAuthorizedAdmin(server, server.AddAdminHandler)),
 	}
     b, err := bot.New(telegramToken, opts...)
 	if err != nil {

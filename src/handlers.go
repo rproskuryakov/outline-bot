@@ -15,12 +15,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-
 type Server struct {
     Db *bun.DB
     RedisDb *redis.Client
     OutlineClients *OutlineVPNClients
 }
+
 
 func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
@@ -74,6 +74,65 @@ func getUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *User
     return user, nil
 }
 
+
+func CheckAuthorized(server *Server, fn func(ctx context.Context, b *bot.Bot, update *models.Update)) func(ctx context.Context, b *bot.Bot, update *models.Update) {
+    return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+        username := update.Message.From.ID
+        hasher := md5.New()
+        hasher.Write([]byte(strconv.FormatInt(username, 10)))
+        usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+        user := new(User)
+        err := server.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+        if err != nil {
+            log.Printf(err.Error())
+            panic(err)
+        }
+        exists := false
+        if *user != (User{}) {
+            exists = true
+        }
+        if exists {
+            fn(ctx, b, update)
+        } else {
+            b.SendMessage(ctx, &bot.SendMessageParams{
+		        ChatID:      update.Message.Chat.ID,
+		        Text:        "User " + strconv.FormatInt(username, 10) + " is not found. \n" +
+		                     "Please, sign up: \n" +
+    		                 "/signUp \n",
+            })
+        }
+    }
+}
+
+func CheckAuthorizedAdmin(server *Server, fn func(ctx context.Context, b *bot.Bot, update *models.Update)) func(ctx context.Context, b *bot.Bot, update *models.Update) {
+    return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+        username := update.Message.From.ID
+        hasher := md5.New()
+        hasher.Write([]byte(strconv.FormatInt(username, 10)))
+        usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+        user := new(User)
+        err := server.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+        if err != nil {
+            log.Printf(err.Error())
+            panic(err)
+        }
+        exists := false
+        if *user != (User{}) {
+            exists = true
+        }
+        if !exists || !user.IsAdmin{
+            b.SendMessage(ctx, &bot.SendMessageParams{
+		        ChatID:      update.Message.Chat.ID,
+		        Text:        "User " + strconv.FormatInt(username, 10) + " is not authorized as an admin. \n" +
+		                     "Please, contact an administrator.",
+            })
+            return
+        }
+        fn(ctx, b, update)
+    }
+}
 
 func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID

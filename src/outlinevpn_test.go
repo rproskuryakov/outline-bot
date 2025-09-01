@@ -77,5 +77,14 @@ func createDockerComposeStack(dockerComposeContent string) (*stack compose.Compo
 
 func main() {
     destDir := "tmp/gogetter"
+    dockerComposePath := "src/shadowbox/"
+    b, err := os.ReadFile(destDir + "/" + dockerComposePath) // just pass the file name
+    if err != nil {
+        fmt.Print(err)
+    }
+
+    fmt.Println(b) // print the content as 'bytes'
+
+    str := string(b) // convert content to a 'string'
     downloadGithubRepository("github.com/Jigsaw-Code/outline-server/", destDir)
 }
