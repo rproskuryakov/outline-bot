@@ -14,7 +14,7 @@ import (
 	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/rproskuryakov/outline-bot/src"
+	"github.com/rproskuryakov/outline-bot/internal"
 )
 
 
@@ -29,7 +29,7 @@ func main() {
     // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
     sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(postgresDsn)))
     db := bun.NewDB(sqldb, pgdialect.New())
-    err := db.ResetModel(ctx, (*src.User)(nil))
+    err := db.ResetModel(ctx, (*internal.User)(nil))
     log.Printf("Table Users created")
     if err != nil {
         panic(err)
@@ -41,17 +41,17 @@ func main() {
         Protocol: 2,  // Connection protocol
     })
 
-    server := &src.Server{Db: db, Fsm: src.NewFSM(redisDB)}
+    server := &internal.Server{Db: db, Fsm: internal.NewFSM(redisDB)}
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.DefaultHandler),
-		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, src.CheckAuthorized(server, server.StartHandler)),
+		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, internal.CheckAuthorized(server, server.StartHandler)),
 		bot.WithMessageTextHandler("/signUp", bot.MatchTypeExact, server.SignUpHandler),
-		bot.WithMessageTextHandler("/issueApiKey", bot.MatchTypeExact, src.CheckAuthorized(server, server.IssueApiKeyHandler)),
-		bot.WithMessageTextHandler("/reissueApiKey", bot.MatchTypeExact, src.CheckAuthorized(server, server.ReissueApiKeyHandler)),
-		bot.WithMessageTextHandler("/createServer", bot.MatchTypeExact, src.CheckAuthorizedAdmin(server, server.CreateServerHandler)),
+		bot.WithMessageTextHandler("/issueApiKey", bot.MatchTypeExact, internal.CheckAuthorized(server, server.IssueApiKeyHandler)),
+		bot.WithMessageTextHandler("/reissueApiKey", bot.MatchTypeExact, internal.CheckAuthorized(server, server.ReissueApiKeyHandler)),
+		bot.WithMessageTextHandler("/createServer", bot.MatchTypeExact, internal.CheckAuthorizedAdmin(server, server.CreateServerHandler)),
 		bot.WithMessageTextHandler("/changeLimits", bot.MatchTypeExact, server.ChangeLimitsHandler),
-		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, src.CheckAuthorized(server, server.ViewTrafficUsedHandler)),
-		bot.WithMessageTextHandler("/addAdmin", bot.MatchTypeExact, src.CheckAuthorizedAdmin(server, server.AddAdminHandler)),
+		bot.WithMessageTextHandler("/viewTrafficUsed", bot.MatchTypeExact, internal.CheckAuthorized(server, server.ViewTrafficUsedHandler)),
+		bot.WithMessageTextHandler("/addAdmin", bot.MatchTypeExact, internal.CheckAuthorizedAdmin(server, server.AddAdminHandler)),
 	}
     b, err := bot.New(telegramToken, opts...)
 	if err != nil {
