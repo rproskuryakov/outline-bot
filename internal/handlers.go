@@ -12,12 +12,15 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"github.com/uptrace/bun"
+
+	"github.com/rproskuryakov/outline-bot/internal/fsm"
+	"github.com/rproskuryakov/outline-bot/internal/clients"
 )
 
 type Server struct {
     Db *bun.DB
-    Fsm *RedisFSM
-    OutlineClients *OutlineVPNClients
+    Fsm *fsm.RedisFSM
+    OutlineClients *clients.OutlineVPNClients
 }
 
 
@@ -31,7 +34,7 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
     if err != nil {
         panic(err)
     }
-    callback := server.Fsm.callbacks[userState.state]
+    callback := server.Fsm.Callbacks[userState.State]
     // @TODO: update user state data
     _, resultEvent, err := callback.Handle(usernameHashed, userState, update.Message.Text)
     if err != nil {

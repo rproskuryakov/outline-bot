@@ -1,4 +1,4 @@
-package internal
+package fsm
 
 import (
     "strconv"
@@ -34,7 +34,7 @@ func StateWaitingForDiscountCallback(username string, state UserState, msg strin
     if discount <= 0 || discount > 100 {
         return state, EventInvalidDiscountEntered, "Invalid discount value entered. Please type in discount from 1 to 100."
     }
-    state.stateData["discount"] = strconv.Itoa(discount)
+    state.StateData["discount"] = strconv.Itoa(discount)
     return state, EventValidDiscountEntered, "Please enter the promocode expiration date."
 }
 

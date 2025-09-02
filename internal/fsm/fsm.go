@@ -1,4 +1,4 @@
-package internal
+package fsm
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 type State string
 
 type UserState struct {
-    state State
-    stateData map[string]string
+    State State
+    StateData map[string]string
 }
 
 type Event string
@@ -99,23 +99,23 @@ type GenericFSM interface {
 
 
 type RedisFSM struct {
-    redisClient *redis.Client
-    transitions map[State]map[Event]State
-    callbacks  map[State]StateHandler
-    startState State
+    RedisClient *redis.Client
+    Transitions map[State]map[Event]State
+    Callbacks  map[State]StateHandler
+    StartState State
 }
 
 func NewFSM(redisClient *redis.Client) *RedisFSM {
 	return &RedisFSM{
-		redisClient: redisClient,
-		startState: StatePending,
-		transitions: Transitions,
+		RedisClient: redisClient,
+		StartState: StatePending,
+		Transitions: Transitions,
 	}
 }
 
 
 func (fsm *RedisFSM) GetState(key string) (UserState, error) {
-    val, err := fsm.redisClient.Get(ctx, key).Result()
+    val, err := fsm.RedisClient.Get(ctx, key).Result()
     if err != nil {
         return UserState{}, err
     }
@@ -134,7 +134,7 @@ func (fsm *RedisFSM) SetState(key string, state UserState) error {
     if err != nil {
         return err
     }
-    err = fsm.redisClient.Set(ctx, key, json, 0).Err()
+    err = fsm.RedisClient.Set(ctx, key, json, 0).Err()
     if err != nil {
         return err
     }
@@ -143,18 +143,18 @@ func (fsm *RedisFSM) SetState(key string, state UserState) error {
 
 
 func (fsm *RedisFSM) Transition(key string, event Event) error {
-	value, err := fsm.redisClient.Get(ctx, key).Result()
+	value, err := fsm.RedisClient.Get(ctx, key).Result()
 	if err != nil {
 		return err
 	}
     currentState := State(value)
 
-    nextState, ok := fsm.transitions[currentState][event]
+    nextState, ok := fsm.Transitions[currentState][event]
     if !ok {
         return fmt.Errorf("Event " + string(event) + " unavailable for state " + string(currentState))
     }
 
-	if err := fsm.redisClient.Set(ctx, key, nextState, 0).Err(); err != nil {
+	if err := fsm.RedisClient.Set(ctx, key, nextState, 0).Err(); err != nil {
 		return err
 	}
 
