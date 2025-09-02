@@ -3,10 +3,19 @@ package src
 import (
 	"context"
 	"fmt"
+	"time"
+	"encoding/json"
+
 	"github.com/redis/go-redis/v9"
 )
 
 type State string
+
+type UserState struct {
+    state State
+    stateData map[string]string
+}
+
 type Event string
 
 const (
@@ -14,6 +23,7 @@ const (
 	StateCompleted State = "completed"
 
     StateWaitingForPromocode State = "waiting-for-promocode"
+    StateWaitingForPromocodeExpirationDate State = "waiting-for-promocode-expiration-date"
     StateCreatingPromocode State = "creating-promocode"
     StateWaitingForDiscount State = "entering-discount"
 
@@ -24,6 +34,8 @@ const (
     EventCreatePromocode Event = "request-promocode-creation"
     EventValidDiscountEntered Event = "entered-valid-discount"
     EventInvalidDiscountEntered Event = "entered-invalid-discount"
+    EventInvalidExpirationDateEntered Event = "invalid-expiration-date"
+    EventValidExpirationDateEntered Event = "valid-expiration-date-entered"
     EventPromocodeCreationSuccess Event = "promocode-creation-success"
     EventPromocodeCreationError Event = "promocode-creation-error"
 
@@ -44,8 +56,12 @@ var (
 	    },
         // promocode creation
         StateWaitingForDiscount: {
-            EventValidDiscountEntered: StateCreatingPromocode,
+            EventValidDiscountEntered: StateWaitingForPromocodeExpirationDate,
             EventInvalidDiscountEntered: StateWaitingForDiscount,
+        },
+        StateWaitingForPromocodeExpirationDate: {
+            EventValidExpirationDateEntered: StateCreatingPromocode,
+            EventInvalidExpirationDateEntered: StateWaitingForPromocodeExpirationDate,
         },
         StateCreatingPromocode: {
             EventPromocodeCreationSuccess: StateCompleted,
@@ -67,12 +83,17 @@ var (
     }
 )
 
+type PromocodeForm struct {
+	Discount int64 `json:"discount"`
+	ExpirationDate time.Time `json:"expirationDate"`
+}
+
 
 var ctx = context.Background()
 
 type GenericFSM interface {
     GetState(key string) (State, error)
-    SetState(key string, state State) error
+    SetState(state UserState) error
     Trigger(key string, event Event) error
 }
 
@@ -80,48 +101,58 @@ type GenericFSM interface {
 type RedisFSM struct {
     redisClient *redis.Client
     transitions map[State]map[Event]State
-    strategies  map[State]StateHandler
+    callbacks  map[State]StateHandler
+    startState State
 }
 
-type StateHandler interface {
-    Handle(event Event) (State, error)
-}
-
-func NewFSM(redisAddr string) *RedisFSM {
+func NewFSM(redisClient *redis.Client) *RedisFSM {
 	return &RedisFSM{
-		redisClient: redis.NewClient(&redis.Options{Addr: redisAddr}),
+		redisClient: redisClient,
+		startState: StatePending,
+		transitions: Transitions,
 	}
 }
 
 
-func (fsm *RedisFSM) GetState(key string) (State, error) {
-    value, err := fsm.redisClient.Get(ctx, key).Result()
+func (fsm *RedisFSM) GetState(key string) (UserState, error) {
+    val, err := fsm.redisClient.Get(ctx, key).Result()
     if err != nil {
-        return State(""), err
+        return UserState{}, err
     }
-    return State(value), nil
+    //   unmarshal
+    var userData UserState
+    unmarshalErr := json.Unmarshal([]byte(val), &userData)
+    if unmarshalErr != nil {
+        return UserState{}, err
+    }
+    return userData, nil
 }
 
-func (fsm *RedisFSM) SetState(key string, state State) error {
-	return fsm.redisClient.Set(ctx, key, state, 0).Err()
+
+func (fsm *RedisFSM) SetState(key string, state UserState) error {
+    json, err := json.Marshal(state)
+    if err != nil {
+        return err
+    }
+    err = fsm.redisClient.Set(ctx, key, json, 0).Err()
+    if err != nil {
+        return err
+    }
+    return nil
 }
 
-func (fsm *RedisFSM) Trigger(key string, event Event) error {
+
+func (fsm *RedisFSM) Transition(key string, event Event) error {
 	value, err := fsm.redisClient.Get(ctx, key).Result()
 	if err != nil {
 		return err
 	}
     currentState := State(value)
 
-	handler, ok := fsm.strategies[currentState]
-	if !ok {
-		return fmt.Errorf("no strategy for state: %s", currentState)
-	}
-
-	nextState, err := handler.Handle(event)
-	if err != nil {
-		return err
-	}
+    nextState, ok := fsm.transitions[currentState][event]
+    if !ok {
+        return fmt.Errorf("Event " + string(event) + " unavailable for state " + string(currentState))
+    }
 
 	if err := fsm.redisClient.Set(ctx, key, nextState, 0).Err(); err != nil {
 		return err

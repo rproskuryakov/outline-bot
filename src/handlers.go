@@ -12,28 +12,32 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"github.com/uptrace/bun"
-	"github.com/redis/go-redis/v9"
 )
 
 type Server struct {
     Db *bun.DB
-    RedisDb *redis.Client
+    Fsm *RedisFSM
     OutlineClients *OutlineVPNClients
 }
 
 
 func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-    usernameTelegramID := update.Message.From.ID
+    usernameTelegramID := strconv.FormatInt(update.Message.From.ID, 10)
     hasher := md5.New()
-    hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
+    hasher.Write([]byte(usernameTelegramID))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-    err := server.RedisDb.Set(ctx, usernameHashed, "/default", 200).Err()
+    userState, err := server.Fsm.GetState(usernameHashed)
     if err != nil {
         panic(err)
     }
-    val, err := server.RedisDb.Get(ctx, usernameHashed).Result()
-    log.Printf(val)
+    callback := server.Fsm.callbacks[userState.state]
+    // @TODO: update user state data
+    _, resultEvent, err := callback.Handle(usernameHashed, userState, update.Message.Text)
+    if err != nil {
+        panic(err)
+    }
+    err = server.Fsm.Transition(usernameHashed, resultEvent)
     if err != nil {
         panic(err)
     }
