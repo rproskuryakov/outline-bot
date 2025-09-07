@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"log"
 	"strconv"
-	"time"
 	"fmt"
 
 	"github.com/go-telegram/bot"
@@ -301,14 +300,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         })
         return
     }
-
-    serverRecord := &model.ServerRecord{
-        CreatedAt: time.Now(),
-        Owner: *user,
-        IsActive: true,
-    }
-    _, insertErr := server.Db.NewInsert().Model(serverRecord).Exec(ctx)
-
+    insertErr := repositories.InsertServerRecord(ctx, user, server.Db)
     if insertErr != nil {
         log.Printf(insertErr.Error())
         panic(insertErr)
