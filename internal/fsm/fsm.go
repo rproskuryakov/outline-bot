@@ -7,6 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/rproskuryakov/outline-bot/internal/clients"
+    "github.com/rproskuryakov/outline-bot/internal/repositories"
 // 	"github.com/rproskuryakov/outline-bot/internal/infra"
 )
 
@@ -48,14 +49,22 @@ type StateArgs struct {
     Input      string         // or richer input type
     Output     string         // produced output
     StateName  string         // helps with logging/debugging
-    UserID string
+    UserID int64
     RedisKey   string         // unique key for Redis state storage
     Text string
     OutlineClients clients.OutlineVPNClients
+    UserRepository repositories.UserRepository
+    ServerRepository repositories.ServerRepository
+    StateStorage StateStorage
 }
 
-func loadArgs(ctx context.Context, client *redis.Client, key string) (*StateArgs, error) {
-    data, err := client.Get(ctx, key).Result()
+type StateStorage struct {
+    RedisClient *redis.Client
+}
+
+
+func (storage *StateStorage) loadArgs(ctx context.Context, key string) (*StateArgs, error) {
+    data, err := storage.RedisClient.Get(ctx, key).Result()
     if err == redis.Nil {
         return nil, nil // no prior state
     } else if err != nil {
@@ -68,23 +77,22 @@ func loadArgs(ctx context.Context, client *redis.Client, key string) (*StateArgs
     return &args, nil
 }
 
-func saveArgs(ctx context.Context, client *redis.Client, args *StateArgs) error {
+func (storage *StateStorage) saveArgs(ctx context.Context, args *StateArgs) error {
     b, err := json.Marshal(args)
     if err != nil {
         return err
     }
-    return client.Set(ctx, args.RedisKey, b, 0).Err()
+    return storage.RedisClient.Set(ctx, args.RedisKey, b, 0).Err()
 }
 
 
 func Run(
     ctx context.Context,
-    client *redis.Client,
     args *StateArgs,
     registry *StateRegistry,
 ) (string, bool, error) {
     // Load current args
-    currentArgs, err := loadArgs(ctx, client, args.RedisKey)
+    currentArgs, err := args.StateStorage.loadArgs(ctx, args.RedisKey)
     if err != nil {
         return "", false, err
     }
@@ -103,7 +111,7 @@ func Run(
     }
 
     if nextFn == nil {
-        _ = client.Del(ctx, updatedArgs.RedisKey).Err()
+        _ = args.StateStorage.RedisClient.Del(ctx, updatedArgs.RedisKey).Err()
         return msg, true, nil
     }
 
@@ -115,7 +123,7 @@ func Run(
 
     updatedArgs.StateName = nextName
 
-    if err := saveArgs(ctx, client, updatedArgs); err != nil {
+    if err := args.StateStorage.saveArgs(ctx, updatedArgs); err != nil {
         return msg, false, err
     }
 

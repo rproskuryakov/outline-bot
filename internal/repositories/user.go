@@ -11,13 +11,18 @@ import (
 	"github.com/rproskuryakov/outline-bot/internal/model"
 )
 
-func GetUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *model.User, e error) {
+
+type UserRepository struct {
+    Db *bun.DB
+}
+
+func (repo *UserRepository) GetUserAttributes(ctx context.Context, username int64) (u *model.User, e error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
     user := new(model.User)
-    err := Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+    err := repo.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
     if err != nil {
         return user, err
     }
@@ -25,13 +30,13 @@ func GetUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *mode
 }
 
 
-func CheckIfUserExists(ctx context.Context, username int64, Db *bun.DB) (bool, error) {
+func (repo *UserRepository) CheckIfUserExists(ctx context.Context, username int64) (bool, error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
     user := new(model.User)
-    err := Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+    err := repo.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
     if err != nil {
         log.Printf(err.Error())
         return false, nil
@@ -43,12 +48,12 @@ func CheckIfUserExists(ctx context.Context, username int64, Db *bun.DB) (bool, e
     return exists, nil
 }
 
-func InsertUser(ctx context.Context, username int64, Db *bun.DB) (error) {
+func (repo *UserRepository) InsertUser(ctx context.Context, username int64) (error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
     user := &model.User{Name: usernameHashed, IsAdmin: false}
-    _, err := Db.NewInsert().Model(user).Exec(ctx)
+    _, err := repo.Db.NewInsert().Model(user).Exec(ctx)
     return err
 }

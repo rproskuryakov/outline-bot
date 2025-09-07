@@ -10,12 +10,17 @@ import (
 )
 
 
-func InsertServerRecord(ctx context.Context, user *model.User, Db *bun.DB) (error) {
+type ServerRepository struct {
+    Db *bun.DB
+}
+
+
+func (repo *ServerRepository) InsertServerRecord(ctx context.Context, user *model.User) (error) {
     serverRecord := &model.ServerRecord{
         CreatedAt: time.Now(),
         Owner: *user,
         IsActive: true,
     }
-    _, insertErr := Db.NewInsert().Model(serverRecord).Exec(ctx)
+    _, insertErr := repo.Db.NewInsert().Model(serverRecord).Exec(ctx)
     return insertErr
 }

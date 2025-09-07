@@ -16,6 +16,7 @@ import (
 
 	"github.com/rproskuryakov/outline-bot/internal/handlers"
 	"github.com/rproskuryakov/outline-bot/internal/model"
+	"github.com/rproskuryakov/outline-bot/internal/repositories"
 )
 
 
@@ -42,7 +43,12 @@ func main() {
         Protocol: 2,  // Connection protocol
     })
 
-    server := &handlers.Server{Db: db, RedisClient: redisDB}
+    server := &handlers.Server{
+//         Db: db,
+        RedisClient: redisDB,
+        UserRepository: &repositories.UserRepository{Db: db},
+        ServerRepository: &repositories.ServerRepository{Db: db},
+    }
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.DefaultHandler),
 		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, handlers.CheckAuthorized(server, server.StartHandler)),

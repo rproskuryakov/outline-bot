@@ -4,6 +4,9 @@ import (
     "context"
     "time"
     "strconv"
+    "log"
+
+    "github.com/rproskuryakov/outline-bot/internal/model"
 )
 
 
@@ -113,6 +116,50 @@ func StateCreatingPromocode(ctx context.Context, args *StateArgs) (*StateArgs, S
     return args, StateWaitingForDiscount, "", nil
 }
 
+// server creation
+
+func StateCreatingServer(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
+    user, err := args.UserRepository.GetUserAttributes(ctx, args.UserID)
+    if err != nil {
+        log.Printf(err.Error())
+        panic(err)
+    }
+    exists := false
+    if *user != (model.User{}) {
+        exists = true
+    }
+    if !exists {
+        msg := "User does not exist."
+//         b.SendMessage(ctx, &bot.SendMessageParams{
+// 		    ChatID:      update.Message.Chat.ID,
+// 		    Text:        ,
+//         })
+        log.Printf("User does not exist.")
+        return args, StatePending, msg, nil
+    }
+    // check if user is admin
+    user, getAttrsError := args.UserRepository.GetUserAttributes(ctx, args.UserID)
+    if getAttrsError != nil {
+        log.Printf(getAttrsError.Error())
+        panic(getAttrsError)
+    }
+    if !user.IsAdmin {
+        msg := "You are not authorized to create a server."
+//         b.SendMessage(ctx, &bot.SendMessageParams{
+// 		    ChatID:      update.Message.Chat.ID,
+// 		    Text:        ,
+//         })
+        return args, StatePending, msg, nil
+    }
+    insertErr := args.UserRepository.InsertUser(ctx, args.UserID)
+    if insertErr != nil {
+        log.Printf(insertErr.Error())
+        panic(insertErr)
+    }
+    msg := "Server record is created."
+    log.Printf("Server record is created.")
+    return args, StatePending, msg, nil
+}
 
 func init() {
     Registry := NewStateRegistry()

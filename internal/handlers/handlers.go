@@ -11,7 +11,7 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
-	"github.com/uptrace/bun"
+// 	"github.com/uptrace/bun"
     "github.com/redis/go-redis/v9"
 
 	"github.com/rproskuryakov/outline-bot/internal/fsm"
@@ -21,7 +21,8 @@ import (
 )
 
 type Server struct {
-    Db *bun.DB
+    UserRepository *repositories.UserRepository
+    ServerRepository *repositories.ServerRepository
     RedisClient *redis.Client
     OutlineClients *clients.OutlineVPNClients
 }
@@ -43,7 +44,7 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
         StateName: "start", // used only on first time
     }
 
-    msg, done, err := fsm.Run(ctx, server.RedisClient, args, fsm.Registry)
+    msg, done, err := fsm.Run(ctx, args, fsm.Registry)
     if !done || err != nil {
         b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: "error"})
         return
@@ -61,24 +62,12 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
     })
 }
 
-// func checkIfUserExists(ctx context.Context, username int64, Db *bun.DB) (f bool, err error) {
-//     hasher := md5.New()
-//     hasher.Write([]byte(strconv.FormatInt(username, 10)))
-//     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
-//
-//     user := new(User)
-//     exists, err := Db.NewSelect().Model(user).Where("username = ?", usernameHashed).Exists(ctx)
-//     if err != nil {
-//         return false, err
-//     }
-//     return exists, nil
-// }
 
 
 func CheckAuthorized(server *Server, fn func(ctx context.Context, b *bot.Bot, update *models.Update)) func(ctx context.Context, b *bot.Bot, update *models.Update) {
     return func(ctx context.Context, b *bot.Bot, update *models.Update) {
         usernameTelegramID := update.Message.From.ID
-        exists, err := repositories.CheckIfUserExists(ctx, usernameTelegramID, server.Db)
+        exists, err := server.UserRepository.CheckIfUserExists(ctx, usernameTelegramID)
         if err != nil {
             panic(err)
         }
@@ -99,7 +88,7 @@ func CheckAuthorizedAdmin(server *Server, fn func(ctx context.Context, b *bot.Bo
     return func(ctx context.Context, b *bot.Bot, update *models.Update) {
         username := update.Message.From.ID
 
-        user, err := repositories.GetUserAttributes(ctx, username, server.Db)
+        user, err := server.UserRepository.GetUserAttributes(ctx, username)
         if err != nil {
             log.Printf(err.Error())
             panic(err)
@@ -124,7 +113,7 @@ func CheckAuthorizedAdmin(server *Server, fn func(ctx context.Context, b *bot.Bo
 func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -171,7 +160,7 @@ func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *mod
     usernameTelegramID := update.Message.From.ID
     // check if user exists
     // check if user exists
-    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -191,7 +180,7 @@ func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *mod
         })
         return
     } else {
-        repositories.InsertUser(ctx, usernameTelegramID, server.Db)
+        server.UserRepository.InsertUser(ctx, usernameTelegramID)
         if err != nil {
             log.Printf(err.Error())
             panic(err)
@@ -232,7 +221,7 @@ func (server *Server) ChangeLimitsHandler(ctx context.Context, b *bot.Bot, updat
 func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -270,7 +259,7 @@ func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *m
 func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -288,7 +277,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         return
     }
     // check if user is admin
-    user, getAttrsError := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, getAttrsError := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
     if getAttrsError != nil {
         log.Printf(getAttrsError.Error())
         panic(getAttrsError)
@@ -300,7 +289,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         })
         return
     }
-    insertErr := repositories.InsertServerRecord(ctx, user, server.Db)
+    insertErr := server.ServerRepository.InsertServerRecord(ctx, user)
     if insertErr != nil {
         log.Printf(insertErr.Error())
         panic(insertErr)
