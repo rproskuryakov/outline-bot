@@ -1,4 +1,4 @@
-package internal
+package model
 
 import (
 	"time"
@@ -82,4 +82,14 @@ type PromocodeUsers struct {
     PromocodeID int64   `bun:",notnull"`
     Promocode Promocode `bun:"rel:belongs-to,join:promocode_id=id"`
     ActivationTimestamp    time.Time    `bun:",notnull"`
+}
+
+type Subscription struct {
+    bun.BaseModel `bun:"table:subscriptions,alias:pu"`
+
+    ID int64 `bun:",pk,autoincrement"`
+    UserID    int64     `bun:",notnull"`
+    User User `bun:"rel:belongs-to,join:user_id=id"`
+    StartDate time.Time    `bun:",notnull"`
+    ExpirationDate time.Time    `bun:",notnull"`
 }

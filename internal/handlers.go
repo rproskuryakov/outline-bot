@@ -15,6 +15,7 @@ import (
 
 	"github.com/rproskuryakov/outline-bot/internal/fsm"
 	"github.com/rproskuryakov/outline-bot/internal/clients"
+	"github.com/rproskuryakov/outline-bot/internal/model"
 )
 
 type Server struct {
@@ -68,12 +69,12 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
 //     return exists, nil
 // }
 
-func getUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *User, e error) {
+func getUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *model.User, e error) {
     hasher := md5.New()
     hasher.Write([]byte(strconv.FormatInt(username, 10)))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-    user := new(User)
+    user := new(model.User)
     err := Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
     if err != nil {
         return user, err
@@ -89,14 +90,14 @@ func CheckAuthorized(server *Server, fn func(ctx context.Context, b *bot.Bot, up
         hasher.Write([]byte(strconv.FormatInt(username, 10)))
         usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-        user := new(User)
+        user := new(model.User)
         err := server.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
         if err != nil {
             log.Printf(err.Error())
             panic(err)
         }
         exists := false
-        if *user != (User{}) {
+        if *user != (model.User{}) {
             exists = true
         }
         if exists {
@@ -119,14 +120,14 @@ func CheckAuthorizedAdmin(server *Server, fn func(ctx context.Context, b *bot.Bo
         hasher.Write([]byte(strconv.FormatInt(username, 10)))
         usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-        user := new(User)
+        user := new(model.User)
         err := server.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
         if err != nil {
             log.Printf(err.Error())
             panic(err)
         }
         exists := false
-        if *user != (User{}) {
+        if *user != (model.User{}) {
             exists = true
         }
         if !exists || !user.IsAdmin{
@@ -150,7 +151,7 @@ func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *mode
         panic(err)
     }
     exists := false
-    if *user != (User{}) {
+    if *user != (model.User{}) {
         exists = true
     }
     if exists && user.IsAdmin {
@@ -197,7 +198,7 @@ func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *mod
         panic(err)
     }
     exists := false
-    if *user != (User{}) {
+    if *user != (model.User{}) {
         exists = true
     }
     if exists {
@@ -215,7 +216,7 @@ func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *mod
         hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
         usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-        user := &User{Name: usernameHashed, IsAdmin: false}
+        user := &model.User{Name: usernameHashed, IsAdmin: false}
         _, err := server.Db.NewInsert().Model(user).Exec(ctx)
 
         if err != nil {
@@ -264,7 +265,7 @@ func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *m
         panic(err)
     }
     exists := false
-    if *user != (User{}) {
+    if *user != (model.User{}) {
         exists = true
     }
     if !exists {
@@ -302,7 +303,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         panic(err)
     }
     exists := false
-    if *user != (User{}) {
+    if *user != (model.User{}) {
         exists = true
     }
     if !exists {
@@ -327,7 +328,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         return
     }
 
-    serverRecord := &ServerRecord{
+    serverRecord := &model.ServerRecord{
         CreatedAt: time.Now(),
         Owner: *user,
         IsActive: true,

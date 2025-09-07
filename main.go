@@ -16,6 +16,7 @@ import (
 
 	"github.com/rproskuryakov/outline-bot/internal"
 	"github.com/rproskuryakov/outline-bot/internal/fsm"
+	"github.com/rproskuryakov/outline-bot/internal/model"
 )
 
 
@@ -30,7 +31,7 @@ func main() {
     // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
     sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(postgresDsn)))
     db := bun.NewDB(sqldb, pgdialect.New())
-    err := db.ResetModel(ctx, (*internal.User)(nil))
+    err := db.ResetModel(ctx, (*model.User)(nil))
     log.Printf("Table Users created")
     if err != nil {
         panic(err)
