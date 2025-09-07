@@ -18,6 +18,7 @@ import (
 	"github.com/rproskuryakov/outline-bot/internal/fsm"
 	"github.com/rproskuryakov/outline-bot/internal/clients"
 	"github.com/rproskuryakov/outline-bot/internal/model"
+	"github.com/rproskuryakov/outline-bot/internal/repositories"
 )
 
 type Server struct {
@@ -32,7 +33,6 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
     hasher := md5.New()
     hasher.Write([]byte(usernameTelegramID))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
-
 
     userInput := update.Message.Text
 
@@ -75,43 +75,20 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
 //     return exists, nil
 // }
 
-func getUserAttributes(ctx context.Context, username int64, Db *bun.DB) (u *model.User, e error) {
-    hasher := md5.New()
-    hasher.Write([]byte(strconv.FormatInt(username, 10)))
-    usernameHashed := hex.EncodeToString(hasher.Sum(nil))
-
-    user := new(model.User)
-    err := Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
-    if err != nil {
-        return user, err
-    }
-    return user, nil
-}
-
 
 func CheckAuthorized(server *Server, fn func(ctx context.Context, b *bot.Bot, update *models.Update)) func(ctx context.Context, b *bot.Bot, update *models.Update) {
     return func(ctx context.Context, b *bot.Bot, update *models.Update) {
-        username := update.Message.From.ID
-        hasher := md5.New()
-        hasher.Write([]byte(strconv.FormatInt(username, 10)))
-        usernameHashed := hex.EncodeToString(hasher.Sum(nil))
-
-        user := new(model.User)
-        err := server.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+        usernameTelegramID := update.Message.From.ID
+        exists, err := repositories.CheckIfUserExists(ctx, usernameTelegramID, server.Db)
         if err != nil {
-            log.Printf(err.Error())
             panic(err)
-        }
-        exists := false
-        if *user != (model.User{}) {
-            exists = true
         }
         if exists {
             fn(ctx, b, update)
         } else {
             b.SendMessage(ctx, &bot.SendMessageParams{
 		        ChatID:      update.Message.Chat.ID,
-		        Text:        "User " + strconv.FormatInt(username, 10) + " is not found. \n" +
+		        Text:        "User " + strconv.FormatInt(usernameTelegramID, 10) + " is not found. \n" +
 		                     "Please, sign up: \n" +
     		                 "/signUp \n",
             })
@@ -151,7 +128,7 @@ func CheckAuthorizedAdmin(server *Server, fn func(ctx context.Context, b *bot.Bo
 func (server *Server) StartHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -198,7 +175,7 @@ func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *mod
     usernameTelegramID := update.Message.From.ID
     // check if user exists
     // check if user exists
-    user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -265,7 +242,7 @@ func (server *Server) ChangeLimitsHandler(ctx context.Context, b *bot.Bot, updat
 func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -303,7 +280,7 @@ func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *m
 func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := update.Message.From.ID
     // check if user exists
-    user, err := getUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, err := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -321,7 +298,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         return
     }
     // check if user is admin
-    user, getAttrsError := getUserAttributes(ctx, usernameTelegramID, server.Db)
+    user, getAttrsError := repositories.GetUserAttributes(ctx, usernameTelegramID, server.Db)
     if getAttrsError != nil {
         log.Printf(getAttrsError.Error())
         panic(getAttrsError)
