@@ -76,7 +76,7 @@ import (
 // )
 
 
-func StatePending(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
+func StatePending(ctx context.Context, args *StateArgs, machine *StateMachine) (*StateArgs, StateFunc, string, error) {
     if args.Input == "/start" {
         return args, StatePending, "", nil
     } else if args.Input == "/createPromocode" {
@@ -86,7 +86,7 @@ func StatePending(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, 
 }
 
 // promocode addition
-func StateWaitingForDiscount(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
+func StateWaitingForDiscount(ctx context.Context, args *StateArgs, machine *StateMachine) (*StateArgs, StateFunc, string, error) {
     discount, err := strconv.Atoi(args.Input)
     if err != nil {
         panic(err)
@@ -100,7 +100,7 @@ func StateWaitingForDiscount(ctx context.Context, args *StateArgs) (*StateArgs, 
 }
 
 
-func StateWaitingForPromocodeExpirationDate(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
+func StateWaitingForPromocodeExpirationDate(ctx context.Context, args *StateArgs, machine *StateMachine) (*StateArgs, StateFunc, string, error) {
     expirationDate := args.Input
     currentDate, err := time.Parse("31-12-2026", expirationDate)
     if err != nil {
@@ -112,14 +112,14 @@ func StateWaitingForPromocodeExpirationDate(ctx context.Context, args *StateArgs
     return args, StateCreatingPromocode, "Creating promocode...", nil
 }
 
-func StateCreatingPromocode(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
+func StateCreatingPromocode(ctx context.Context, args *StateArgs, machine *StateMachine) (*StateArgs, StateFunc, string, error) {
     return args, StateWaitingForDiscount, "", nil
 }
 
 // server creation
 
-func StateCreatingServer(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
-    user, err := args.UserRepository.GetUserAttributes(ctx, args.UserID)
+func StateCreatingServer(ctx context.Context, args *StateArgs, machine *StateMachine) (*StateArgs, StateFunc, string, error) {
+    user, err := machine.UserRepository.GetUserAttributes(ctx, args.UserID)
     if err != nil {
         log.Printf(err.Error())
         panic(err)
@@ -138,7 +138,7 @@ func StateCreatingServer(ctx context.Context, args *StateArgs) (*StateArgs, Stat
         return args, StatePending, msg, nil
     }
     // check if user is admin
-    user, getAttrsError := args.UserRepository.GetUserAttributes(ctx, args.UserID)
+    user, getAttrsError := machine.UserRepository.GetUserAttributes(ctx, args.UserID)
     if getAttrsError != nil {
         log.Printf(getAttrsError.Error())
         panic(getAttrsError)
@@ -151,7 +151,7 @@ func StateCreatingServer(ctx context.Context, args *StateArgs) (*StateArgs, Stat
 //         })
         return args, StatePending, msg, nil
     }
-    insertErr := args.UserRepository.InsertUser(ctx, args.UserID)
+    insertErr := machine.UserRepository.InsertUser(ctx, args.UserID)
     if insertErr != nil {
         log.Printf(insertErr.Error())
         panic(insertErr)

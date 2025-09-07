@@ -14,7 +14,7 @@ import (
 
 var Registry *StateRegistry
 
-type StateFunc func(ctx context.Context, args *StateArgs)  (*StateArgs, StateFunc, string, error)
+type StateFunc func(ctx context.Context, args *StateArgs, machine *StateMachine)  (*StateArgs, StateFunc, string, error)
 
 type StateRegistry struct {
     nameToFunc map[string]StateFunc
@@ -52,6 +52,9 @@ type StateArgs struct {
     UserID int64
     RedisKey   string         // unique key for Redis state storage
     Text string
+}
+
+type StateMachine struct {
     OutlineClients clients.OutlineVPNClients
     UserRepository repositories.UserRepository
     ServerRepository repositories.ServerRepository
@@ -90,9 +93,10 @@ func Run(
     ctx context.Context,
     args *StateArgs,
     registry *StateRegistry,
+    machine *StateMachine,
 ) (string, bool, error) {
     // Load current args
-    currentArgs, err := args.StateStorage.loadArgs(ctx, args.RedisKey)
+    currentArgs, err := machine.StateStorage.loadArgs(ctx, args.RedisKey)
     if err != nil {
         return "", false, err
     }
@@ -105,13 +109,13 @@ func Run(
         return "", false, fmt.Errorf("unknown state: %s", currentArgs.StateName)
     }
 
-    updatedArgs, nextFn, msg, err := currentFn(ctx, currentArgs)
+    updatedArgs, nextFn, msg, err := currentFn(ctx, currentArgs, machine)
     if err != nil {
         return msg, false, err
     }
 
     if nextFn == nil {
-        _ = args.StateStorage.RedisClient.Del(ctx, updatedArgs.RedisKey).Err()
+        _ = machine.StateStorage.RedisClient.Del(ctx, updatedArgs.RedisKey).Err()
         return msg, true, nil
     }
 
@@ -123,7 +127,7 @@ func Run(
 
     updatedArgs.StateName = nextName
 
-    if err := args.StateStorage.saveArgs(ctx, updatedArgs); err != nil {
+    if err := machine.StateStorage.saveArgs(ctx, updatedArgs); err != nil {
         return msg, false, err
     }
 

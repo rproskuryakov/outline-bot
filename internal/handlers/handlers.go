@@ -22,6 +22,7 @@ import (
 
 type Server struct {
     UserRepository *repositories.UserRepository
+    Machine *fsm.StateMachine
     RedisClient *redis.Client
     OutlineClients *clients.OutlineVPNClients
 }
@@ -43,7 +44,7 @@ func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *mo
         StateName: "start", // used only on first time
     }
 
-    msg, done, err := fsm.Run(ctx, args, fsm.Registry)
+    msg, done, err := fsm.Run(ctx, args, fsm.Registry, server.Machine)
     if !done || err != nil {
         b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: "error"})
         return
@@ -271,7 +272,7 @@ func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, updat
         StateName: "StateCreatingServer", // used only on first time
     }
 
-    msg, done, err := fsm.Run(ctx, args, fsm.Registry)
+    msg, done, err := fsm.Run(ctx, args, fsm.Registry, server.Machine)
     if !done || err != nil {
         b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: msg})
     }
