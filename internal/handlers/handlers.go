@@ -99,19 +99,16 @@ func CheckAuthorized(server *Server, fn func(ctx context.Context, b *bot.Bot, up
 func CheckAuthorizedAdmin(server *Server, fn func(ctx context.Context, b *bot.Bot, update *models.Update)) func(ctx context.Context, b *bot.Bot, update *models.Update) {
     return func(ctx context.Context, b *bot.Bot, update *models.Update) {
         username := update.Message.From.ID
-        hasher := md5.New()
-        hasher.Write([]byte(strconv.FormatInt(username, 10)))
-        usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-        user := new(model.User)
-        err := server.Db.NewSelect().Model(user).Where("id = ?", usernameHashed).Scan(ctx)
+        user, err := repositories.GetUserAttributes(ctx, username, server.Db)
         if err != nil {
             log.Printf(err.Error())
             panic(err)
         }
         exists := false
-        if *user != (model.User{}) {
-            exists = true
+        if *user == (model.User{}) {
+            exists = false
+            return
         }
         if !exists || !user.IsAdmin{
             b.SendMessage(ctx, &bot.SendMessageParams{
@@ -195,13 +192,7 @@ func (server *Server) SignUpHandler(ctx context.Context, b *bot.Bot, update *mod
         })
         return
     } else {
-        hasher := md5.New()
-        hasher.Write([]byte(strconv.FormatInt(usernameTelegramID, 10)))
-        usernameHashed := hex.EncodeToString(hasher.Sum(nil))
-
-        user := &model.User{Name: usernameHashed, IsAdmin: false}
-        _, err := server.Db.NewInsert().Model(user).Exec(ctx)
-
+        repositories.InsertUser(ctx, usernameTelegramID, server.Db)
         if err != nil {
             log.Printf(err.Error())
             panic(err)
