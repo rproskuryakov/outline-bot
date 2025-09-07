@@ -15,7 +15,6 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/rproskuryakov/outline-bot/internal"
-	"github.com/rproskuryakov/outline-bot/internal/fsm"
 	"github.com/rproskuryakov/outline-bot/internal/model"
 )
 
@@ -43,7 +42,7 @@ func main() {
         Protocol: 2,  // Connection protocol
     })
 
-    server := &internal.Server{Db: db, Fsm: fsm.NewFSM(redisDB)}
+    server := &internal.Server{Db: db, RedisClient: redisDB}
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.DefaultHandler),
 		bot.WithMessageTextHandler("/start", bot.MatchTypeExact, internal.CheckAuthorized(server, server.StartHandler)),

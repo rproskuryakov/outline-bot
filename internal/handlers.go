@@ -7,11 +7,13 @@ import (
 	"log"
 	"strconv"
 	"time"
+	"fmt"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
 	"github.com/uptrace/bun"
+    "github.com/redis/go-redis/v9"
 
 	"github.com/rproskuryakov/outline-bot/internal/fsm"
 	"github.com/rproskuryakov/outline-bot/internal/clients"
@@ -20,31 +22,35 @@ import (
 
 type Server struct {
     Db *bun.DB
-    Fsm *fsm.RedisFSM
+    RedisClient *redis.Client
     OutlineClients *clients.OutlineVPNClients
 }
 
-
+//
 func (server *Server) DefaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
     usernameTelegramID := strconv.FormatInt(update.Message.From.ID, 10)
     hasher := md5.New()
     hasher.Write([]byte(usernameTelegramID))
     usernameHashed := hex.EncodeToString(hasher.Sum(nil))
 
-    userState, err := server.Fsm.GetState(usernameHashed)
-    if err != nil {
-        panic(err)
+
+    userInput := update.Message.Text
+
+    redisKey := fmt.Sprintf("user:%d:state", usernameHashed)
+
+    args := &fsm.StateArgs{
+        Input:     userInput,
+        RedisKey:  redisKey,
+        StateName: "start", // used only on first time
     }
-    callback := server.Fsm.Callbacks[userState.State]
-    // @TODO: update user state data
-    _, resultEvent, err := callback.Handle(usernameHashed, userState, update.Message.Text)
-    if err != nil {
-        panic(err)
+
+    msg, done, err := fsm.Run(ctx, server.RedisClient, args, fsm.Registry)
+    if !done || err != nil {
+        b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: "error"})
+        return
     }
-    err = server.Fsm.Transition(usernameHashed, resultEvent)
-    if err != nil {
-        panic(err)
-    }
+
+    b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: msg})
     b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
 		Text:        "I am YetAnotherVPN Bot. \n"+
