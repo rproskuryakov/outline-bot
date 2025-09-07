@@ -44,10 +44,8 @@ func main() {
     })
 
     server := &handlers.Server{
-//         Db: db,
         RedisClient: redisDB,
         UserRepository: &repositories.UserRepository{Db: db},
-        ServerRepository: &repositories.ServerRepository{Db: db},
     }
 	opts := []bot.Option{
 		bot.WithDefaultHandler(server.DefaultHandler),

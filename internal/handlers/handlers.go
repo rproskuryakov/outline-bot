@@ -22,7 +22,6 @@ import (
 
 type Server struct {
     UserRepository *repositories.UserRepository
-    ServerRepository *repositories.ServerRepository
     RedisClient *redis.Client
     OutlineClients *clients.OutlineVPNClients
 }
@@ -257,43 +256,24 @@ func (server *Server) AddAdminHandler(ctx context.Context, b *bot.Bot, update *m
 }
 
 func (server *Server) CreateServerHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-    usernameTelegramID := update.Message.From.ID
-    // check if user exists
-    user, err := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
-    if err != nil {
-        log.Printf(err.Error())
-        panic(err)
+        usernameTelegramID := strconv.FormatInt(update.Message.From.ID, 10)
+    hasher := md5.New()
+    hasher.Write([]byte(usernameTelegramID))
+    usernameHashed := hex.EncodeToString(hasher.Sum(nil))
+
+    userInput := update.Message.Text
+
+    redisKey := fmt.Sprintf("user:%d:state", usernameHashed)
+
+    args := &fsm.StateArgs{
+        Input:     userInput,
+        RedisKey:  redisKey,
+        StateName: "StateCreatingServer", // used only on first time
     }
-    exists := false
-    if *user != (model.User{}) {
-        exists = true
+
+    msg, done, err := fsm.Run(ctx, args, fsm.Registry)
+    if !done || err != nil {
+        b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: msg})
     }
-    if !exists {
-        b.SendMessage(ctx, &bot.SendMessageParams{
-		    ChatID:      update.Message.Chat.ID,
-		    Text:        "User does not exist.",
-        })
-        log.Printf("User does not exist.")
-        return
-    }
-    // check if user is admin
-    user, getAttrsError := server.UserRepository.GetUserAttributes(ctx, usernameTelegramID)
-    if getAttrsError != nil {
-        log.Printf(getAttrsError.Error())
-        panic(getAttrsError)
-    }
-    if !user.IsAdmin {
-        b.SendMessage(ctx, &bot.SendMessageParams{
-		    ChatID:      update.Message.Chat.ID,
-		    Text:        "You are not authorized to create a server.",
-        })
-        return
-    }
-    insertErr := server.ServerRepository.InsertServerRecord(ctx, user)
-    if insertErr != nil {
-        log.Printf(insertErr.Error())
-        panic(insertErr)
-    }
-    log.Printf("Server record is created.")
 }
 
