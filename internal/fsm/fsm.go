@@ -5,75 +5,13 @@ import (
 	"fmt"
 	"encoding/json"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/rproskuryakov/outline-bot/internal/clients"
+// 	"github.com/rproskuryakov/outline-bot/internal/infra"
 )
 
 
 var Registry *StateRegistry
-
-// const (
-// 	StatePending   State = "pending"
-// 	StateCompleted State = "completed"
-//
-//     StateWaitingForPromocode State = "waiting-for-promocode"
-//     StateWaitingForPromocodeExpirationDate State = "waiting-for-promocode-expiration-date"
-//     StateCreatingPromocode State = "creating-promocode"
-//     StateWaitingForDiscount State = "entering-discount"
-//
-//     StateWaitingForUserID State = "waiting-for-user-id"
-//     StateCheckingIfUserIsAdmin State = "checking-if-user-is-admin"
-//     StateAuthorizingUserAsAdmin State = "adding-admin-rights"
-//
-//     EventCreatePromocode Event = "request-promocode-creation"
-//     EventValidDiscountEntered Event = "entered-valid-discount"
-//     EventInvalidDiscountEntered Event = "entered-invalid-discount"
-//     EventInvalidExpirationDateEntered Event = "invalid-expiration-date"
-//     EventValidExpirationDateEntered Event = "valid-expiration-date-entered"
-//     EventPromocodeCreationSuccess Event = "promocode-creation-success"
-//     EventPromocodeCreationError Event = "promocode-creation-error"
-//
-//     EventAddAdmin Event = "request-admin-creation"
-//     EventCorrectUserIDEntered Event = "correct-user-id-entered"
-//     EventIncorrectUserIDEntered Event = "incorrect-user-id-entered"
-//     EventUserAlreadyHasAdminRights Event = "user-is-already-an-admin"
-//     EventUserHasNoAdminRights Event = "user-has-no-admin-rights"
-//     EventAdminCreationSuccess Event = "user-added-as-admin"
-//     EventAdminCreationError Event = "user-addition-as-admin-failed"
-// )
-//
-// var (
-// 	Transitions = map[State]map[Event]State{
-// 	    StatePending: {
-// 	        EventCreatePromocode: StateWaitingForDiscount,
-// 	        EventAddAdmin: StateWaitingForUserID,
-// 	    },
-//         // promocode creation
-//         StateWaitingForDiscount: {
-//             EventValidDiscountEntered: StateWaitingForPromocodeExpirationDate,
-//             EventInvalidDiscountEntered: StateWaitingForDiscount,
-//         },
-//         StateWaitingForPromocodeExpirationDate: {
-//             EventValidExpirationDateEntered: StateCreatingPromocode,
-//             EventInvalidExpirationDateEntered: StateWaitingForPromocodeExpirationDate,
-//         },
-//         StateCreatingPromocode: {
-//             EventPromocodeCreationSuccess: StateCompleted,
-//             EventPromocodeCreationError: StateCompleted,
-//         },
-//         // add admin
-//         StateWaitingForUserID: {
-//             EventCorrectUserIDEntered: StateCheckingIfUserIsAdmin,
-//             EventIncorrectUserIDEntered: StateCompleted,
-//         },
-//         StateCheckingIfUserIsAdmin: {
-//             EventUserAlreadyHasAdminRights: StateCompleted,
-//             EventUserHasNoAdminRights: StateAuthorizingUserAsAdmin,
-//         },
-//         StateAuthorizingUserAsAdmin: {
-//             EventAdminCreationSuccess: StateCompleted,
-//             EventAdminCreationError: StateCompleted,
-//         },
-//     }
-// )
 
 type StateFunc func(ctx context.Context, args *StateArgs)  (*StateArgs, StateFunc, string, error)
 
@@ -113,6 +51,7 @@ type StateArgs struct {
     UserID string
     RedisKey   string         // unique key for Redis state storage
     Text string
+    OutlineClients clients.OutlineVPNClients
 }
 
 func loadArgs(ctx context.Context, client *redis.Client, key string) (*StateArgs, error) {
