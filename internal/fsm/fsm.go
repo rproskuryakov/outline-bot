@@ -3,9 +3,7 @@ package fsm
 import (
 	"context"
 	"fmt"
-	"time"
 	"encoding/json"
-    "strconv"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -76,28 +74,6 @@ var Registry *StateRegistry
 //         },
 //     }
 // )
-
-// functional state machine
-
-// type State[T any] func(ctx context.Context, args T) (T, State[T], error)
-
-
-// func Run[T any](ctx context.Context, args T, start State[T]) (T, error) {
-//   var err error
-//   current := start
-//   for {
-//     if ctx.Err() != nil {
-//       return args, ctx.Err()
-//     }
-//     args, current, err = current(ctx, args)
-//     if err != nil {
-//       return args, err
-//     }
-//     if current == nil {
-//       return args, nil
-//     }
-//   }
-// }
 
 type StateFunc func(ctx context.Context, args *StateArgs)  (*StateArgs, StateFunc, string, error)
 
@@ -207,67 +183,3 @@ func Run(
     return msg, false, nil
 }
 
-// func Run(ctx context.Context, client *redis.Client, initial *StateArgs, start StateFunc) error {
-//     args := initial
-//     if existing, err := loadArgs(ctx, client, initial.RedisKey); err != nil {
-//         return err
-//     } else if existing != nil {
-//         args = existing
-//     }
-//
-//     current := start
-//     for current != nil {
-//         var err error
-//         args, current, err, msg = current(ctx, args)
-//         if err != nil {
-//             return err
-//         }
-//         if err := saveArgs(ctx, client, args); err != nil {
-//             return err
-//         }
-//     }
-//
-//     _ = client.Del(ctx, args.RedisKey).Err() // optional cleanup
-//     return nil
-// }
-
-
-func StateWaitingForDiscount(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
-    discount, err := strconv.Atoi(args.Input)
-    if err != nil {
-        panic(err)
-    }
-    if discount <= 0 || discount < 100 {
-        args.StateName = "StateWaitingForDiscount"
-        return args, StateWaitingForDiscount, "Invalid discount value entered. Please type in discount from 1 to 100.", nil
-    }
-    args.Output = strconv.Itoa(discount)
-    return args, StateWaitingForPromocodeExpirationDate, "Please enter the promocode expiration date.", nil
-}
-
-
-func StateWaitingForPromocodeExpirationDate(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
-//     expirationDate := "05-03-2027"
-    expirationDate := args.Input
-    currentDate, err := time.Parse("31-12-2026", expirationDate)
-    if err != nil {
-        panic(err)
-    }
-    if currentDate.Before(time.Now()) {
-        return args, StateWaitingForPromocodeExpirationDate, "Please type in valid expiration date in format DD-MM-YYYY", nil
-    }
-    return args, StateCreatingPromocode, "Creating promocode...", nil
-}
-
-func StateCreatingPromocode(ctx context.Context, args *StateArgs) (*StateArgs, StateFunc, string, error) {
-    return args, StateWaitingForPromocodeExpirationDate, "", nil
-}
-
-
-func init() {
-    Registry := NewStateRegistry()
-    Registry.Register("WaitingForDiscount", StateWaitingForDiscount)
-    Registry.Register("CreatingPromocode", StateCreatingPromocode)
-    Registry.Register("WaitingForPromocodeExpirationDate", StateWaitingForPromocodeExpirationDate)
-    // optional if final state
-}
