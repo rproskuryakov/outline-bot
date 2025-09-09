@@ -10,6 +10,14 @@ import (
 )
 
 
+type ServerStore interface {
+    Add(name string, server model.ServerRecord) error
+    Get(name string) (model.ServerRecord, error)
+    Update(name string, server model.ServerRecord) error
+    List() (map[string]model.ServerRecord, error)
+    Remove(name string) error
+}
+
 type ServerRepository struct {
     Db *bun.DB
 }
