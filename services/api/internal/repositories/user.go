@@ -8,7 +8,7 @@ import (
     "log"
 	"github.com/uptrace/bun"
 
-	"github.com/rproskuryakov/outline-bot/internal/model"
+	"github.com/rproskuryakov/outline-bot/services/api/internal/model"
 )
 
 

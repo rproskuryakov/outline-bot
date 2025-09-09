@@ -8,7 +8,6 @@ import (
 
 	"github.com/rproskuryakov/outline-bot/internal/clients"
     "github.com/rproskuryakov/outline-bot/internal/repositories"
-// 	"github.com/rproskuryakov/outline-bot/internal/infra"
 )
 
 

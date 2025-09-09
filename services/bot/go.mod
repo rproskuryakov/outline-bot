@@ -1,4 +1,4 @@
-module github.com/rproskuryakov/outline-bot
+module github.com/rproskuryakov/outline-bot/services/bot
 
 go 1.23.8
 

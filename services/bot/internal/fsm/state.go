@@ -7,6 +7,7 @@ import (
     "log"
 
     "github.com/rproskuryakov/outline-bot/internal/model"
+// 	"github.com/rproskuryakov/outline-bot/internal/infra"
 )
 
 
@@ -77,12 +78,28 @@ import (
 
 
 func StatePending(ctx context.Context, args *StateArgs, machine *StateMachine) (*StateArgs, StateFunc, string, error) {
-    if args.Input == "/start" {
-        return args, StatePending, "", nil
-    } else if args.Input == "/createPromocode" {
-        return args, StateWaitingForDiscount, "Enter a valid discount from 0 to 100 percent.", nil
+    switch args.Input {
+        case "/start":
+            return args, StatePending, "", nil
+        case "/createPromocode":
+            return args, StateWaitingForDiscount, "Enter a valid discount from 0 to 100 percent.", nil
+        case "/signUp":
+            return args, StateWaitingForPhoneNumber, "Enter a valid phone number.", nil
+        case "/issueAPIKey":
+            return args, StateWaitingForAPIKey, "", nil
+        case "/reissueAPIKey":
+            return args,
+        case "/createServer":
+            return args, StateWaitingForServerParams, "", nil
+        case "/changeLimits":
+            return
+        case "/viewTrafficUsed":
+            return
+        case "/addAdmin":
+            return
+        default:
+            args, StatePending, "", nil
     }
-    return args, StatePending, "", nil
 }
 
 // promocode addition
