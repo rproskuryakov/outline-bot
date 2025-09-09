@@ -15,9 +15,8 @@ func main() {
  mux := http.NewServeMux()
 
  // Register the routes and handlers
- mux.Handle("/createServer", &CreateServerHandler{})
- mux.Handle("/createUser", &CreateUserHandler{})
- mux.Handle("/changeLimits")
+ mux.Handle("/createServer", &handlers.ServerHandler{})
+ mux.Handle("/createUser", &handlers.UserHandler{})
 
  // Run the server
  http.ListenAndServe(":8080", mux)
