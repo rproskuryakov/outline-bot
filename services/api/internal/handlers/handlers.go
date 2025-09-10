@@ -11,6 +11,12 @@ type ServerHandler struct {
     store repositories.ServerStore
 }
 
+func NewServerHandler(s repositories.ServerStore) *ServerHandler {
+    return &ServerHandler{
+        store: s,
+    }
+}
+
 func (h *ServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("This is my home page"))
 }
@@ -36,6 +42,12 @@ type UserHandler struct {
     store repositories.UserStore
 }
 
+func NewUserHandler(s repositories.UserStore) *UserHandler {
+    return &UserHandler{
+        store: s,
+    }
+}
+
 func (h *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("This is my home page"))
 }
@@ -58,6 +70,12 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 type APIKeyHandler struct {
     store repositories.APIKeyStore
+}
+
+func NewAPIKeyHandler(s repositories.APIKeyStore) *APIKeyHandler {
+    return &APIKeyHandler{
+        store: s,
+    }
 }
 
 func (h *APIKeyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
