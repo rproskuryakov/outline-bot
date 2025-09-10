@@ -2,16 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"os"
 	"os/signal"
 
 	"github.com/go-telegram/bot"
-
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/rproskuryakov/outline-bot/internal/handlers"
@@ -22,20 +17,12 @@ import (
 
 func main() {
     var telegramToken string = os.Getenv("TELEGRAM_API_TOKEN")
-    var postgresDsn string = os.Getenv("POSTGRES_DSN")
     var redisPassword string = os.Getenv("REDIS_PASSWORD")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
     // dsn := "unix://user:pass@dbname/var/run/postgresql/.s.PGSQL.5432"
-    sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(postgresDsn)))
-    db := bun.NewDB(sqldb, pgdialect.New())
-    err := db.ResetModel(ctx, (*model.User)(nil))
-    log.Printf("Table Users created")
-    if err != nil {
-        panic(err)
-    }
     redisDB := redis.NewClient(&redis.Options{
         Addr:	  "cache:6379",
         Password: redisPassword, // No password set
